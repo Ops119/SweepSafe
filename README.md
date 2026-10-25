@@ -43,6 +43,15 @@ Differences from EVM: there is no public scam-address list or source verificatio
 so those checks are skipped (a warning says so), and delegations have no timestamp, so the
 stale-approval rule does not apply. A delegated amount of 2^63 or more counts as unlimited.
 
+## Wallets
+
+The web scanner lists every installed wallet and lets you choose: EVM wallets through EIP-6963
+(MetaMask, Rabby, Coinbase Wallet and others), Solana wallets through Wallet Standard (Phantom,
+Solflare, Backpack and others), with a fallback to older injected wallets. Connecting only shares
+your public address. WalletConnect (mobile QR) is not included because it needs a relay service
+and project ID, which does not fit a zero-cost, backend-free tool; use the CLI and sign in any
+wallet instead. Wallet support is tested with simulated wallets only, not real extensions.
+
 ## How scoring works
 
 | Rule | Points |
@@ -74,8 +83,8 @@ CLI uses the standard library (`urllib`, `argparse`, `sqlite3`) plus `pydantic`,
 - Public RPCs can be slow or rate-limited; first scans of old wallets may take minutes.
 - A provider that silently truncates logs can hide approvals.
 - ERC-20 and SPL tokens only: no NFT approvals and no Permit2.
-- Solana revoke in the browser relies on the wallet accepting a pre-built transaction and has
-  not been tested against a real wallet; the CLI's base64 transaction is the fallback.
+- Browser wallet connections and Solana revoke have only been tested against simulated wallets,
+  not real extensions; the CLI's base64 transaction is the fallback.
 - Robinhood Chain has only two public RPCs configured (every other chain has three); override
   with `SWEEPSAFE_RPC_ROBINHOOD`. Public endpoints on every chain are rate-limited.
 - The MyCrypto scam-address list URL could not be confirmed; if it is unreachable the scan

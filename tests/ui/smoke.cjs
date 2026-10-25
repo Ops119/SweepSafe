@@ -98,6 +98,48 @@ const srv = http.createServer((q, r) => {
   const soltx = await page.evaluate(() => window.__soltx);
   const raw = Buffer.from(S.b58decode(soltx.params.message));
   if (soltx.method !== "signAndSendTransaction" || raw[0] !== 1 || raw.slice(1, 65).some((b) => b !== 0)) throw new Error("bad solana tx");
+  // Wallet picker: two EIP-6963 wallets (one hostile name), plus a Wallet Standard Solana wallet.
+  const ETH_A = "0x" + "aa".repeat(20), ETH_B = "0x" + "bb".repeat(20);
+  const page2 = await browser.newPage();
+  await page2.addInitScript(([ethA, ethB, solOwner]) => {
+    const png = "data:image/png;base64,iVBORw0KGgo=";
+    const mk = (uuid, name, account) => ({ info: { uuid, name, icon: png, rdns: uuid + ".io" },
+      provider: { async request({ method, params }) {
+        if (method === "eth_requestAccounts") return [account];
+        if (method === "eth_chainId") return "0x1";
+        if (method === "eth_sendTransaction") { window.__sent = { by: name, tx: params[0] }; return "0x" + "cd".repeat(32); }
+        throw new Error("unexpected " + method);
+      } } });
+    const wallets = [mk("alpha", "Alpha Wallet", ethA), mk("beta", '<img src=x onerror="window.__pwn2=1">Beta', ethB)];
+    window.addEventListener("eip6963:requestProvider", () =>
+      wallets.forEach((detail) => window.dispatchEvent(new CustomEvent("eip6963:announceProvider", { detail }))));
+    const std = { name: "Std Wallet", icon: png, chains: ["solana:mainnet"], accounts: [],
+      features: { "standard:connect": { connect: async () => ({ accounts: [{ address: solOwner }] }) },
+        "solana:signAndSendTransaction": { signAndSendTransaction: async (i) => { window.__stdsend = i; return [{ signature: new Uint8Array(64).fill(5) }]; } } } };
+    window.dispatchEvent(new CustomEvent("wallet-standard:register-wallet", { detail: (api) => api.register(std) }));
+    window.addEventListener("wallet-standard:app-ready", (e) => e.detail.register(std));
+  }, [ETH_A, ETH_B, SOL_OWNER]);
+  await page2.route(/^https:\/\//, (route) => route.fulfill({ status: 404, body: "{}", headers: { "access-control-allow-origin": "*" } }));
+  await page2.goto(`${base}/report.html`);
+  await page2.click("#connect");
+  await page2.waitForSelector("#wallet-list button");
+  const names = await page2.locator("#wallet-list button").allInnerTexts();
+  if (names.length !== 2 || names[0] !== "Alpha Wallet" || /[<>]/.test(names[1])) throw new Error("wallet list " + JSON.stringify(names));
+  if (await page2.locator("#wallet-list img[src^='data:image/png']").count() !== 2) throw new Error("wallet icons missing");
+  if (await page2.locator("#wallet-list img:not([src^='data:image/png'])").count()) throw new Error("hostile name became an element");
+  if (await page2.evaluate(() => window.__pwn2)) throw new Error("hostile wallet name executed");
+  await page2.locator("#wallet-list button").nth(1).click();
+  await page2.waitForFunction(() => document.getElementById("address").value.length > 0);
+  if ((await page2.inputValue("#address")) !== ETH_B) throw new Error("wrong account after picking Beta");
+  if (!(await page2.locator("#wallet-picker").getAttribute("class")).includes("hidden")) throw new Error("picker should close");
+  await page2.selectOption("#chain", "solana");
+  await page2.click("#connect");
+  await page2.waitForSelector("#wallet-list button");
+  if ((await page2.locator("#wallet-list button").allInnerTexts()).join() !== "Std Wallet") throw new Error("solana wallet list");
+  await page2.locator("#wallet-list button").first().click();
+  await page2.waitForFunction((o) => document.getElementById("address").value === o, SOL_OWNER);
+  await page2.close();
+
   await page.goto(base + "/");
   await page.waitForSelector("h1");
   // Demo card: real rules, sample data. unlimited + unverified contract + fresh = 35 + 20 = 55 (high).

@@ -2,7 +2,9 @@
   "use strict";
   var S = window.SweepSafe;
   var $ = function (id) { return document.getElementById(id); };
-  var state = { rules: null, wallet: null, account: null, scanning: false };
+  var W = window.SweepSafeWallets;
+  var wallets = W.init(window, S);
+  var state = { rules: null, wallet: null, scanning: false };
 
   function setStatus(text) { $("status").textContent = text; }
   function el(tag, cls, text) {
@@ -27,8 +29,45 @@
     list.forEach(function (w) { box.appendChild(el("div", "warn", w)); });
   }
 
-  function solanaProvider() {
-    return (window.phantom && window.phantom.solana) || window.solana || null;
+  function kindFor(chainName) { return chainName === "solana" ? "solana" : "evm"; }
+
+  /** The wallet to revoke with: the one the user picked, or the only one installed. */
+  function walletFor(kind) {
+    if (state.wallet && state.wallet.kind === kind) return state.wallet;
+    var all = wallets.list(kind);
+    return all.length === 1 ? all[0] : null;
+  }
+
+  function renderWalletPicker() {
+    var box = $("wallet-list");
+    var kind = kindFor($("chain").value);
+    box.textContent = "";
+    var all = wallets.list(kind);
+    if (!all.length) {
+      box.appendChild(el("p", null, "No " + (kind === "solana" ? "Solana" : "EVM") + " wallet detected. Install a wallet extension and reload, or paste an address to scan without one."));
+      return;
+    }
+    all.forEach(function (w) {
+      var b = el("button", null, null);
+      b.type = "button";
+      if (w.icon) { var img = document.createElement("img"); img.src = w.icon; img.alt = ""; img.width = 20; img.height = 20; b.appendChild(img); }
+      b.appendChild(el("span", null, w.name));
+      b.addEventListener("click", function () { chooseWallet(w); });
+      box.appendChild(b);
+    });
+  }
+
+  async function chooseWallet(w) {
+    try {
+      setStatus("Approve the connection in " + w.name + "…");
+      var address = w.kind === "solana" ? await w.connect() : await wallets.connectEvm(w);
+      state.wallet = w;
+      $("address").value = address;
+      $("wallet-picker").classList.add("hidden");
+      setStatus("Connected " + w.name + " (read-only until you click Revoke).");
+    } catch (e) {
+      setStatus("Wallet connection cancelled" + (e && e.message ? ": " + e.message : "."));
+    }
   }
 
   function renderResults(result, chain) {
@@ -64,11 +103,12 @@
 
   async function revoke(btn, chain, approval) {
     if (chain.name === "solana") return revokeSolana(btn, chain, approval);
-    if (!window.ethereum) { setStatus("No browser wallet found. Install one, or use the CLI."); return; }
+    var w = walletFor("evm");
+    if (!w) { setStatus("Connect a wallet first (use Connect wallet), or use the CLI."); return; }
     btn.disabled = true;
     try {
-      setStatus("Confirm the revoke in your wallet…");
-      var hash = await S.sendRevoke(window.ethereum, chain, { owner: approval.owner, token: approval.token, spender: approval.spender });
+      setStatus("Confirm the revoke in " + w.name + "…");
+      var hash = await S.sendRevoke(w.provider, chain, { owner: approval.owner, token: approval.token, spender: approval.spender });
       setStatus("Revoke submitted: " + hash);
     } catch (e) {
       setStatus("Revoke not sent: " + (e && e.message ? e.message : "cancelled"));
@@ -77,13 +117,13 @@
   }
 
   async function revokeSolana(btn, chain, approval) {
-    var provider = solanaProvider();
-    if (!provider) { setStatus("No Solana wallet found. Install Phantom, or use the CLI."); return; }
+    var w = walletFor("solana");
+    if (!w) { setStatus("Connect a Solana wallet first (use Connect wallet), or use the CLI."); return; }
     btn.disabled = true;
     try {
-      setStatus("Confirm the revoke in your wallet…");
+      setStatus("Confirm the revoke in " + w.name + "…");
       var reader = S.createRpc({ urls: chain.rpcs, minIntervalMs: S.SOLANA.minIntervalMs });
-      var sig = await S.sendSolanaRevoke(provider, reader, approval);
+      var sig = await S.sendSolanaRevoke(w, reader, approval);
       setStatus("Revoke submitted: " + sig);
     } catch (e) {
       setStatus("Revoke not sent: " + (e && e.message ? e.message : "cancelled"));
@@ -140,22 +180,16 @@
     scan($("chain").value, $("address").value.trim());
   });
 
-  $("connect").addEventListener("click", async function () {
-    if ($("chain").value === "solana") {
-      var sp = solanaProvider();
-      if (!sp) { setStatus("No Solana wallet found. You can still scan any address."); return; }
-      try {
-        var r = await sp.connect();
-        $("address").value = String((r && r.publicKey) || sp.publicKey || "");
-        setStatus("Wallet connected (read-only until you click Revoke).");
-      } catch (e) { setStatus("Wallet connection cancelled."); }
-      return;
-    }
-    if (!window.ethereum) { setStatus("No browser wallet found. You can still scan any address."); return; }
-    try {
-      var accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
-      if (accounts && accounts[0]) { $("address").value = accounts[0]; setStatus("Wallet connected (read-only until you click Revoke)."); }
-    } catch (e) { setStatus("Wallet connection cancelled."); }
+  $("connect").addEventListener("click", function () {
+    var picker = $("wallet-picker");
+    renderWalletPicker();
+    picker.classList.toggle("hidden");
+  });
+  $("wallet-close").addEventListener("click", function () { $("wallet-picker").classList.add("hidden"); });
+  wallets.onChange(function () { if (!$("wallet-picker").classList.contains("hidden")) renderWalletPicker(); });
+  $("chain").addEventListener("change", function () {
+    if (state.wallet && state.wallet.kind !== kindFor($("chain").value)) state.wallet = null;
+    if (!$("wallet-picker").classList.contains("hidden")) renderWalletPicker();
   });
 
   $("share").addEventListener("click", function () {

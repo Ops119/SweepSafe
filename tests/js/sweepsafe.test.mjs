@@ -695,15 +695,14 @@ test("unsigned Solana revoke transaction layout", () => {
 
 test("sendSolanaRevoke refuses a different connected key and never sends", async () => {
   const approval = { owner: SOL_OWNER, tokenAccount: SOL_ACCT, tokenProgram: S.SOLANA.tokenProgram };
-  const calls = [];
-  const provider = (key) => ({
-    async connect() { return { publicKey: { toString: () => key } }; },
-    async request(req) { calls.push(req.method); return { signature: "sig123" }; },
-  });
-  await assert.rejects(() => S.sendSolanaRevoke(provider(SOL_WALLET), solReader([]), approval), /Connect the wallet/);
-  assert.deepEqual(calls, []);
-  assert.equal(await S.sendSolanaRevoke(provider(SOL_OWNER), solReader([]), approval), "sig123");
-  assert.deepEqual(calls, ["signAndSendTransaction"]);
+  const sent = [];
+  const wallet = (key) => ({ async connect() { return key; }, async signAndSend(raw) { sent.push(raw); return "sig123"; } });
+  await assert.rejects(() => S.sendSolanaRevoke(wallet(SOL_WALLET), solReader([]), approval), /Connect the wallet/);
+  await assert.rejects(() => S.sendSolanaRevoke(wallet(""), solReader([]), approval), /connected: none/);
+  assert.deepEqual(sent, []);
+  assert.equal(await S.sendSolanaRevoke(wallet(SOL_OWNER), solReader([]), approval), "sig123");
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0][0], 1); // unsigned transaction handed to the wallet
 });
 
 test("solana share links round trip", () => {

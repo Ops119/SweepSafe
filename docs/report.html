@@ -23,6 +23,12 @@
 <button class="primary" id="go" type="submit">Scan</button>
 </form>
 <div class="row"><button type="button" id="connect">Connect wallet</button><button type="button" id="share" class="hidden">Copy share link</button></div>
+<section class="card hidden" id="wallet-picker" aria-labelledby="wallet-h">
+<h2 id="wallet-h">Choose a wallet</h2>
+<div class="row" id="wallet-list"></div>
+<p>Connecting only shares your public address. Nothing is sent until you click Revoke and confirm in the wallet.</p>
+<button type="button" id="wallet-close">Close</button>
+</section>
 <p class="status" id="status" role="status" aria-live="polite"></p>
 <progress id="bar" class="hidden" max="100" value="0"></progress>
 <div id="warnings"></div>
@@ -44,6 +50,7 @@
 <footer>No backend, no keys, no tracking. Data comes from public RPCs and open lists, straight from your browser.</footer>
 </main>
 <script src="sweepsafe.js"></script>
+<script src="wallets.js"></script>
 <script src="app.js"></script>
 <script src="donate.js"></script>
 </body>

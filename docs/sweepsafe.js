@@ -1073,17 +1073,18 @@
     const raw = Uint8Array.from([...compactU16(1), ...new Array(64).fill(0), ...message]);
     return { raw, base64: toBase64(raw), base58: b58encode(raw) };
   }
-  /** Phantom-style provider. Refuses unless the connected key IS the scanned owner. */
-  async function sendSolanaRevoke(provider, reader, approval) {
-    const resp = await provider.connect();
-    const key = String((resp && resp.publicKey) || provider.publicKey || "");
+  /**
+   * Revoke through a normalized wallet: {connect(): Promise<address>, signAndSend(raw): Promise<signature>}
+   * (see wallets.js). Refuses unless the connected key IS the scanned owner.
+   */
+  async function sendSolanaRevoke(wallet, reader, approval) {
+    const key = String((await wallet.connect()) || "");
     if (key !== approval.owner) {
       throw new Error("Connect the wallet " + shortAddress(approval.owner) + " to revoke this delegation (connected: " + (key ? shortAddress(key) : "none") + ").");
     }
     const latest = await reader.call("getLatestBlockhash", [{ commitment: "confirmed" }]);
     const tx = buildSolanaRevokeTx(approval, latest.value.blockhash);
-    const sent = await provider.request({ method: "signAndSendTransaction", params: { message: tx.base58 } });
-    return sent && sent.signature ? sent.signature : sent;
+    return wallet.signAndSend(tx.raw);
   }
 
   // ---------------------------------------------------------------- share links + revoke
