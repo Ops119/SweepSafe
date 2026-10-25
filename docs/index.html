@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; base-uri 'none'; form-action 'none'">
+<title>SweepSafe — find and revoke risky token approvals</title>
+<meta name="description" content="Free, open-source, non-custodial scanner for risky ERC-20 approvals on Ethereum, Base and Arbitrum.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top"><div class="wrap">
+<a class="brand" href="./">SweepSafe</a>
+<nav><a href="report.html">Scanner</a><a href="https://github.com/Ops119/SweepSafe">GitHub</a></nav>
+</div></header>
+<main class="wrap">
+<h1>Find and revoke risky token approvals. Free. Non-custodial.</h1>
+<p class="lead">Paste a wallet address, see which contracts can spend your tokens, and get a plain-English risk score for each. Nothing leaves your browser.</p>
+<div class="cta">
+<a class="btn primary" href="report.html">Scan a wallet</a>
+<a class="btn" href="https://github.com/Ops119/SweepSafe">Star on GitHub</a>
+</div>
+<p>Prefer the terminal?</p>
+<div class="cmd"><code id="cmd">pipx install git+https://github.com/Ops119/SweepSafe</code><button id="copy" type="button">Copy</button></div>
+<div class="features">
+<div class="card"><h2>Plain English</h2><p>Every approval is explained: who can spend what, and why it may be risky.</p></div>
+<div class="card"><h2>Zero cost</h2><p>Public RPCs and open scam lists. No API keys, accounts or servers.</p></div>
+<div class="card"><h2>You sign</h2><p>Revokes are built as unsigned transactions. Your wallet signs; we never see keys.</p></div>
+</div>
+<div class="notice"><strong>Safety.</strong> SweepSafe never asks for a seed phrase or private key. The scanner is read-only until you click Revoke, and every revoke is confirmed in your own wallet. A low score is not a guarantee of safety.</div>
+<footer>MIT licensed · <a href="https://github.com/Ops119/SweepSafe">Source</a> · Risk rules are public in <a href="rules.json">rules.json</a>.</footer>
+</main>
+<script src="landing.js"></script>
+</body>
+</html>

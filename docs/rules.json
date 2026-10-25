@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "unlimited_threshold": "57896044618658097711785492504343953926634992332820282019728792003956564819968",
+  "stale_days": 180,
+  "rules": {
+    "blocklisted_spender": {
+      "weight": 100,
+      "message": "The spender address appears on a public scam/phishing blocklist."
+    },
+    "spender_is_eoa": {
+      "weight": 30,
+      "message": "The spender is a regular wallet, not a smart contract. Legitimate apps almost never need this."
+    },
+    "unlimited_allowance": {
+      "weight": 35,
+      "message": "The allowance is effectively unlimited, so the spender can move every token you hold of this kind."
+    },
+    "unverified_contract": {
+      "weight": 20,
+      "message": "The spender contract has no verified source code that we could find."
+    },
+    "unknown_verification": {
+      "weight": 5,
+      "message": "We could not check whether the spender contract is verified."
+    },
+    "stale_approval": {
+      "weight": 15,
+      "message": "Granted about {days} days ago. Old approvals are easy to forget and stay dangerous."
+    }
+  },
+  "levels": [
+    { "name": "critical", "min": 75 },
+    { "name": "high", "min": 50 },
+    { "name": "medium", "min": 25 },
+    { "name": "low", "min": 0 }
+  ],
+  "explain": {
+    "headline": "{symbol}: {allowance} allowance for {spender}",
+    "risk_line": "Risk {level} ({score}/100).",
+    "no_findings": "No risk signals found.",
+    "advice": {
+      "critical": "Revoke this now.",
+      "high": "Revoke this unless you know exactly why it exists.",
+      "medium": "Consider revoking if you no longer use this app.",
+      "low": "Low risk. Keep it only if you still use this app."
+    }
+  }
+}
