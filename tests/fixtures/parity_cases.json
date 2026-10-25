@@ -1,0 +1,162 @@
+[
+  {
+    "name": "clean_verified_contract",
+    "token": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "spender": "0xc1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+    "token_symbol": "USDC",
+    "token_decimals": 6,
+    "input": {
+      "allowance": "1500000000",
+      "spender_is_contract": true,
+      "verification": "verified",
+      "blocklisted": false,
+      "age_days": 10
+    },
+    "expected": {
+      "score": 0,
+      "level": "low",
+      "rule_ids": [],
+      "explanation": "USDC: 1,500 allowance for 0xc1c1…c1c1\nRisk low (0/100).\n- No risk signals found.\nLow risk. Keep it only if you still use this app."
+    }
+  },
+  {
+    "name": "unlimited_unverified_stale",
+    "token": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "spender": "0xc1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+    "token_symbol": "WETH",
+    "token_decimals": 18,
+    "input": {
+      "allowance": "115792089237316195423570985008687907853269984665640564039457584007913129639935",
+      "spender_is_contract": true,
+      "verification": "unverified",
+      "blocklisted": false,
+      "age_days": 200
+    },
+    "expected": {
+      "score": 70,
+      "level": "high",
+      "rule_ids": ["unlimited_allowance", "unverified_contract", "stale_approval"],
+      "explanation": "WETH: unlimited allowance for 0xc1c1…c1c1\nRisk high (70/100).\n- The allowance is effectively unlimited, so the spender can move every token you hold of this kind.\n- The spender contract has no verified source code that we could find.\n- Granted about 200 days ago. Old approvals are easy to forget and stay dangerous.\nRevoke this unless you know exactly why it exists."
+    }
+  },
+  {
+    "name": "eoa_spender",
+    "token": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "spender": "0xc1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+    "token_symbol": "XYZ",
+    "token_decimals": 18,
+    "input": {
+      "allowance": "123456789012345678",
+      "spender_is_contract": false,
+      "verification": "unknown",
+      "blocklisted": false,
+      "age_days": 5
+    },
+    "expected": {
+      "score": 30,
+      "level": "medium",
+      "rule_ids": ["spender_is_eoa"],
+      "explanation": "XYZ: 0.1234 allowance for 0xc1c1…c1c1\nRisk medium (30/100).\n- The spender is a regular wallet, not a smart contract. Legitimate apps almost never need this.\nConsider revoking if you no longer use this app."
+    }
+  },
+  {
+    "name": "blocklisted_critical_and_tiny_amount",
+    "token": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "spender": "0xc1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+    "token_symbol": "SCAM",
+    "token_decimals": 18,
+    "input": {
+      "allowance": "1",
+      "spender_is_contract": true,
+      "verification": "unknown",
+      "blocklisted": true,
+      "age_days": 1
+    },
+    "expected": {
+      "score": 100,
+      "level": "critical",
+      "rule_ids": ["blocklisted_spender", "unknown_verification"],
+      "explanation": "SCAM: <0.0001 allowance for 0xc1c1…c1c1\nRisk critical (100/100).\n- The spender address appears on a public scam/phishing blocklist.\n- We could not check whether the spender contract is verified.\nRevoke this now."
+    }
+  },
+  {
+    "name": "unknown_decimals_and_symbol",
+    "token": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "spender": "0xc1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+    "token_symbol": null,
+    "token_decimals": null,
+    "input": {
+      "allowance": "42",
+      "spender_is_contract": null,
+      "verification": "unknown",
+      "blocklisted": false,
+      "age_days": null
+    },
+    "expected": {
+      "score": 0,
+      "level": "low",
+      "rule_ids": [],
+      "explanation": "Token 0xaaaa…aaaa: 42 raw units allowance for 0xc1c1…c1c1\nRisk low (0/100).\n- No risk signals found.\nLow risk. Keep it only if you still use this app."
+    }
+  },
+  {
+    "name": "hostile_symbol_placeholder_stays_inert",
+    "token": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "spender": "0xc1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+    "token_symbol": "{spender}",
+    "token_decimals": 6,
+    "input": {
+      "allowance": "1000000",
+      "spender_is_contract": true,
+      "verification": "verified",
+      "blocklisted": false,
+      "age_days": 0
+    },
+    "expected": {
+      "score": 0,
+      "level": "low",
+      "rule_ids": [],
+      "explanation": "{spender}: 1 allowance for 0xc1c1…c1c1\nRisk low (0/100).\n- No risk signals found.\nLow risk. Keep it only if you still use this app."
+    }
+  },
+  {
+    "name": "thousands_separators_and_fraction",
+    "token": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "spender": "0xc1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+    "token_symbol": "DAI",
+    "token_decimals": 18,
+    "input": {
+      "allowance": "1234567890123456789012",
+      "spender_is_contract": true,
+      "verification": "verified",
+      "blocklisted": false,
+      "age_days": 1
+    },
+    "expected": {
+      "score": 0,
+      "level": "low",
+      "rule_ids": [],
+      "explanation": "DAI: 1,234.5678 allowance for 0xc1c1…c1c1\nRisk low (0/100).\n- No risk signals found.\nLow risk. Keep it only if you still use this app."
+    }
+  },
+  {
+    "name": "one_below_unlimited_and_stale_boundary",
+    "token": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "spender": "0xc1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1",
+    "token_symbol": "EDGE",
+    "token_decimals": null,
+    "input": {
+      "allowance": "57896044618658097711785492504343953926634992332820282019728792003956564819967",
+      "spender_is_contract": true,
+      "verification": "verified",
+      "blocklisted": false,
+      "age_days": 180
+    },
+    "expected": {
+      "score": 0,
+      "level": "low",
+      "rule_ids": [],
+      "explanation": "EDGE: 57896044618658097711785492504343953926634992332820282019728792003956564819967 raw units allowance for 0xc1c1…c1c1\nRisk low (0/100).\n- No risk signals found.\nLow risk. Keep it only if you still use this app."
+    }
+  }
+]
