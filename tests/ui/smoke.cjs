@@ -8,6 +8,18 @@ const word = (n) => n.toString(16).padStart(64, "0");
 const hexStr = (t) => "0x" + word(32) + word(t.length) + Buffer.from(t).toString("hex").padEnd(64, "0");
 const HOSTILE = '<img src=x onerror="window.__pwn=1">';
 
+
+// Poll with evaluate(): waitForFunction evals a string, which the pages' strict CSP (no unsafe-eval)
+// correctly blocks. The CSP stays enforced, so we poll instead.
+async function until(page, fn, arg, timeoutMs = 15000) {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    if (await page.evaluate(fn, arg)) return;
+    if (Date.now() > deadline) throw new Error("timed out waiting for: " + fn.toString().slice(0, 120));
+    await new Promise((r) => setTimeout(r, 100));
+  }
+}
+
 const srv = http.createServer((q, r) => {
   const f = path.join(root, q.url.split("#")[0].split("?")[0].replace(/^\/$/, "/index.html"));
   if (!f.startsWith(root) || !fs.existsSync(f)) { r.writeHead(404); return r.end(); }
@@ -60,7 +72,7 @@ const srv = http.createServer((q, r) => {
   if (await page.evaluate(() => window.__pwn)) throw new Error("XSS executed");
   if (await page.locator("#results img").count()) throw new Error("hostile markup became DOM");
   await page.locator("button", { hasText: "Revoke" }).first().click();
-  await page.waitForFunction(() => window.__tx);
+  await until(page, () => window.__tx);
   const tx = await page.evaluate(() => window.__tx);
   if (tx.to !== TOKEN || !tx.data.startsWith("0x095ea7b3") || !tx.data.endsWith("0".repeat(64))) throw new Error("bad tx " + JSON.stringify(tx));
   // Solana: scan via share link, hostile-free render, revoke refuses nothing and builds an unsigned tx.
@@ -94,7 +106,7 @@ const srv = http.createServer((q, r) => {
   if (!/unlimited/.test(await page.locator("#results").innerText())) throw new Error("solana scan did not render");
   if (!(await page.locator("#results a").first().getAttribute("href")).includes("solscan.io/account/")) throw new Error("bad solana link");
   await page.locator("button", { hasText: "Revoke" }).first().click();
-  await page.waitForFunction(() => window.__soltx);
+  await until(page, () => window.__soltx);
   const soltx = await page.evaluate(() => window.__soltx);
   const raw = Buffer.from(S.b58decode(soltx.params.message));
   if (soltx.method !== "signAndSendTransaction" || raw[0] !== 1 || raw.slice(1, 65).some((b) => b !== 0)) throw new Error("bad solana tx");
@@ -129,7 +141,7 @@ const srv = http.createServer((q, r) => {
   if (await page2.locator("#wallet-list img:not([src^='data:image/png'])").count()) throw new Error("hostile name became an element");
   if (await page2.evaluate(() => window.__pwn2)) throw new Error("hostile wallet name executed");
   await page2.locator("#wallet-list button").nth(1).click();
-  await page2.waitForFunction(() => document.getElementById("address").value.length > 0);
+  await until(page2, () => document.getElementById("address").value.length > 0);
   if ((await page2.inputValue("#address")) !== ETH_B) throw new Error("wrong account after picking Beta");
   if (!(await page2.locator("#wallet-picker").getAttribute("class")).includes("hidden")) throw new Error("picker should close");
   await page2.selectOption("#chain", "solana");
@@ -137,13 +149,13 @@ const srv = http.createServer((q, r) => {
   await page2.waitForSelector("#wallet-list button");
   if ((await page2.locator("#wallet-list button").allInnerTexts()).join() !== "Std Wallet") throw new Error("solana wallet list");
   await page2.locator("#wallet-list button").first().click();
-  await page2.waitForFunction((o) => document.getElementById("address").value === o, SOL_OWNER);
+  await until(page2, (o) => document.getElementById("address").value === o, SOL_OWNER);
   await page2.close();
 
   await page.goto(base + "/");
   await page.waitForSelector("h1");
   // Demo card: real rules, sample data. unlimited + unverified contract + fresh = 35 + 20 = 55 (high).
-  await page.waitForFunction(() => document.getElementById("demo-badge").textContent !== "LOW 0");
+  await until(page, () => document.getElementById("demo-badge").textContent !== "LOW 0");
   if ((await page.locator("#demo-badge").innerText()) !== "HIGH 55") throw new Error("demo default " + (await page.locator("#demo-badge").innerText()));
   const demoCases = [["limited", "verified", "30", "LOW 0"], ["unlimited", "scam", "30", "CRITICAL 100"], ["limited", "wallet", "400", "MEDIUM 45"]];
   for (const [al, sp, age, want] of demoCases) {
