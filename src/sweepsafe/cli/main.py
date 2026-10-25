@@ -21,7 +21,7 @@ from sweepsafe.report import render_report
 from sweepsafe.revoker import build_revoke_txs, select_for_revoke
 from sweepsafe.scanner import ScanError
 from sweepsafe.service import Dependencies, open_dependencies, scan_wallet
-from sweepsafe.solana import SOLANA_RPCS, is_solana_address, scan_solana
+from sweepsafe.solana import SOLANA_MIN_INTERVAL, SOLANA_RPCS, is_solana_address, scan_solana
 from sweepsafe.solana import build_revoke_tx as build_solana_revoke
 
 EXPECTED_ERRORS = (
@@ -191,7 +191,12 @@ def _solana_reader(
         transport or UrllibTransport(),
         retries=settings.retries,
         backoff=settings.backoff,
-        min_interval=settings.request_interval,
+        # Slower than EVM by default; an explicit SWEEPSAFE_REQUEST_INTERVAL still wins.
+        min_interval=(
+            settings.request_interval
+            if "SWEEPSAFE_REQUEST_INTERVAL" in os.environ
+            else max(settings.request_interval, SOLANA_MIN_INTERVAL)
+        ),
         timeout=settings.timeout,
     )
 

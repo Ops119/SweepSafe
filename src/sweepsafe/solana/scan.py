@@ -20,7 +20,10 @@ SOLANA_EXPLORER = "https://solscan.io"
 SOLANA_RPCS = (
     "https://solana-rpc.publicnode.com",
     "https://api.mainnet-beta.solana.com",
+    "https://solana.drpc.org",
 )
+# The public endpoint allows 40 calls per method per 10 s; 0.3 s per call stays under that.
+SOLANA_MIN_INTERVAL = 0.3
 TOKEN_PROGRAM = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
 TOKEN_2022_PROGRAM = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
 SYSTEM_PROGRAM = "11111111111111111111111111111111"

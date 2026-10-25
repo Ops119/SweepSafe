@@ -272,3 +272,23 @@ def test_cli_rejects_mismatched_address_types(tmp_path, capsys):
 def test_rpc_client_works_without_a_chain_id():
     client = RpcClient(["https://sol.example"], SolanaTransport(), min_interval=0)
     assert client.call("getSlot", []) == 4242
+
+
+def test_solana_is_throttled_below_the_public_rate_limit(monkeypatch):
+    import argparse
+
+    from sweepsafe.cli.main import _solana_reader
+    from sweepsafe.config.settings import Settings
+    from sweepsafe.solana import SOLANA_MIN_INTERVAL, SOLANA_RPCS
+
+    assert SOLANA_MIN_INTERVAL >= 10 / 40  # public cap: 40 calls per method per 10 s
+    assert len(SOLANA_RPCS) >= 3
+    args = argparse.Namespace(rpc=[])
+    monkeypatch.delenv("SWEEPSAFE_REQUEST_INTERVAL", raising=False)
+    client = _solana_reader(args, Settings.from_env({}), SolanaTransport())
+    assert client.min_interval == SOLANA_MIN_INTERVAL
+    monkeypatch.setenv("SWEEPSAFE_REQUEST_INTERVAL", "0")
+    client = _solana_reader(
+        args, Settings.from_env({"SWEEPSAFE_REQUEST_INTERVAL": "0"}), SolanaTransport()
+    )
+    assert client.min_interval == 0  # an explicit setting wins

@@ -76,6 +76,7 @@
       rpcs: [
         "https://optimism-rpc.publicnode.com",
         "https://mainnet.optimism.io",
+        "https://public.1rpc.io/op",
       ],
       explorer: "https://optimistic.etherscan.io",
       blockscout: "https://optimism.blockscout.com",
@@ -88,6 +89,7 @@
       rpcs: [
         "https://polygon-bor-rpc.publicnode.com",
         "https://polygon-rpc.com",
+        "https://public.1rpc.io/matic",
       ],
       explorer: "https://polygonscan.com",
       blockscout: "https://polygon.blockscout.com",
@@ -100,6 +102,7 @@
       rpcs: [
         "https://bsc-rpc.publicnode.com",
         "https://bsc-dataseed.binance.org",
+        "https://public.1rpc.io/bnb",
       ],
       explorer: "https://bscscan.com",
       blockscout: null,
@@ -112,6 +115,7 @@
       rpcs: [
         "https://avalanche-c-chain-rpc.publicnode.com",
         "https://api.avax.network/ext/bc/C/rpc",
+        "https://public.1rpc.io/avax/c",
       ],
       explorer: "https://snowtrace.io",
       blockscout: null,
@@ -124,6 +128,7 @@
       rpcs: [
         "https://linea-rpc.publicnode.com",
         "https://rpc.linea.build",
+        "https://public.1rpc.io/linea",
       ],
       explorer: "https://lineascan.build",
       blockscout: null,
@@ -135,6 +140,7 @@
       id: 4663,
       rpcs: [
         "https://rpc.mainnet.chain.robinhood.com",
+        "https://robinhood.drpc.org",
       ],
       explorer: "https://robinhoodchain.blockscout.com",
       blockscout: "https://robinhoodchain.blockscout.com",
@@ -927,7 +933,9 @@
   const SOLANA = {
     name: "solana",
     clusterId: 101,
-    rpcs: ["https://solana-rpc.publicnode.com", "https://api.mainnet-beta.solana.com"],
+    rpcs: ["https://solana-rpc.publicnode.com", "https://api.mainnet-beta.solana.com", "https://solana.drpc.org"],
+    // Public mainnet allows 40 calls per method per 10 s; 0.3 s per call stays under it.
+    minIntervalMs: 300,
     explorer: "https://solscan.io",
     tokenProgram: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
     token2022Program: "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",

@@ -99,6 +99,7 @@ def test_solana_constants_and_transaction_bytes_match():
     from sweepsafe.models import Approval
     from sweepsafe.solana import (
         SOLANA_EXPLORER,
+        SOLANA_MIN_INTERVAL,
         SOLANA_RPCS,
         TOKEN_2022_PROGRAM,
         TOKEN_PROGRAM,
@@ -123,6 +124,7 @@ def test_solana_constants_and_transaction_bytes_match():
     js = json.loads(out)
     assert tuple(js["s"]["rpcs"]) == tuple(SOLANA_RPCS)
     assert js["s"]["explorer"] == SOLANA_EXPLORER
+    assert js["s"]["minIntervalMs"] == round(SOLANA_MIN_INTERVAL * 1000)
     assert (js["s"]["tokenProgram"], js["s"]["token2022Program"]) == (
         TOKEN_PROGRAM,
         TOKEN_2022_PROGRAM,

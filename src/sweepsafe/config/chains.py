@@ -61,6 +61,7 @@ OPTIMISM = Chain(
     rpcs=(
         "https://optimism-rpc.publicnode.com",
         "https://mainnet.optimism.io",
+        "https://public.1rpc.io/op",
     ),
     explorer="https://optimistic.etherscan.io",
     blockscout="https://optimism.blockscout.com",
@@ -73,6 +74,7 @@ POLYGON = Chain(
     rpcs=(
         "https://polygon-bor-rpc.publicnode.com",
         "https://polygon-rpc.com",
+        "https://public.1rpc.io/matic",
     ),
     explorer="https://polygonscan.com",
     blockscout="https://polygon.blockscout.com",
@@ -85,6 +87,7 @@ BNB = Chain(
     rpcs=(
         "https://bsc-rpc.publicnode.com",
         "https://bsc-dataseed.binance.org",
+        "https://public.1rpc.io/bnb",
     ),
     explorer="https://bscscan.com",
     blockscout=None,
@@ -97,6 +100,7 @@ AVALANCHE = Chain(
     rpcs=(
         "https://avalanche-c-chain-rpc.publicnode.com",
         "https://api.avax.network/ext/bc/C/rpc",
+        "https://public.1rpc.io/avax/c",
     ),
     explorer="https://snowtrace.io",
     blockscout=None,
@@ -109,6 +113,7 @@ LINEA = Chain(
     rpcs=(
         "https://linea-rpc.publicnode.com",
         "https://rpc.linea.build",
+        "https://public.1rpc.io/linea",
     ),
     explorer="https://lineascan.build",
     blockscout=None,
@@ -118,7 +123,10 @@ LINEA = Chain(
 ROBINHOOD = Chain(
     name="robinhood",
     chain_id=4663,
-    rpcs=("https://rpc.mainnet.chain.robinhood.com",),
+    rpcs=(
+        "https://rpc.mainnet.chain.robinhood.com",
+        "https://robinhood.drpc.org",
+    ),
     explorer="https://robinhoodchain.blockscout.com",
     blockscout="https://robinhoodchain.blockscout.com",
     reorg_depth=256,  # Arbitrum Orbit chain

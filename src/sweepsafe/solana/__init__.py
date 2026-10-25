@@ -9,6 +9,7 @@ from sweepsafe.solana.base58 import Base58Error, b58decode, b58encode, is_solana
 from sweepsafe.solana.revoke import SolanaTx, build_revoke_message, build_revoke_tx
 from sweepsafe.solana.scan import (
     SOLANA_EXPLORER,
+    SOLANA_MIN_INTERVAL,
     SOLANA_NAME,
     SOLANA_RPCS,
     TOKEN_2022_PROGRAM,
@@ -18,6 +19,7 @@ from sweepsafe.solana.scan import (
 
 __all__ = [
     "SOLANA_EXPLORER",
+    "SOLANA_MIN_INTERVAL",
     "SOLANA_NAME",
     "SOLANA_RPCS",
     "TOKEN_2022_PROGRAM",

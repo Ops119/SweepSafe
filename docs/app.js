@@ -82,7 +82,7 @@
     btn.disabled = true;
     try {
       setStatus("Confirm the revoke in your wallet…");
-      var reader = S.createRpc({ urls: chain.rpcs });
+      var reader = S.createRpc({ urls: chain.rpcs, minIntervalMs: S.SOLANA.minIntervalMs });
       var sig = await S.sendSolanaRevoke(provider, reader, approval);
       setStatus("Revoke submitted: " + sig);
     } catch (e) {
@@ -111,7 +111,7 @@
       setStatus("Scanning " + chain.name + "…");
       bar.classList.remove("hidden");
       bar.value = 0;
-      var reader = S.createRpc({ urls: chain.rpcs, expectedChainId: isSol ? undefined : chain.id });
+      var reader = S.createRpc({ urls: chain.rpcs, expectedChainId: isSol ? undefined : chain.id, minIntervalMs: isSol ? S.SOLANA.minIntervalMs : undefined });
       var cache = (function () { try { return S.storageCache(window.localStorage); } catch (e) { return S.memoryCache(); } })();
       var blocklist = isSol ? null : await S.loadBlocklist({ fetchImpl: window.fetch.bind(window), urls: S.BLOCKLIST_URLS, cache: cache });
       var result = isSol

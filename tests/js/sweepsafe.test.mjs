@@ -714,3 +714,9 @@ test("solana share links round trip", () => {
   assert.equal(S.getChain("hood").name, "robinhood");
   assert.equal(S.getChain("solana"), null); // not an EVM chain
 });
+
+test("solana is throttled under the public limit and every chain has fallbacks", () => {
+  assert.ok(S.SOLANA.minIntervalMs >= 250); // 40 calls per method per 10 s
+  assert.ok(S.SOLANA.rpcs.length >= 3);
+  for (const c of Object.values(S.CHAINS)) assert.ok(c.rpcs.length >= (c.name === "robinhood" ? 2 : 3), c.name);
+});
