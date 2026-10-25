@@ -81,6 +81,13 @@ CLI uses the standard library (`urllib`, `argparse`, `sqlite3`) plus `pydantic`,
 - Blocklists and verification services are third parties and can be wrong or offline.
 - The Pages demo calls those services from your browser, so it needs them to allow CORS.
 
+## Support
+
+Free and open source. Optional donations in USDC on Solana go straight to
+`75DDnCQt4HPP5bF55oSBvSrwuCSLcC7U2w9tc3kMmyrA` (the same address as the Donate button on the
+site; check they match before sending). Donations are voluntary, non-refundable and buy no
+features or support.
+
 ## Development
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). Security reports: [SECURITY.md](SECURITY.md).

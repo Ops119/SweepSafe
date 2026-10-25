@@ -54,7 +54,7 @@ const srv = http.createServer((q, r) => {
     return route.fulfill({ status: 404, body: "{}", headers: cors });
   });
   await page.goto(`${base}/report.html#ethereum:${OWNER}`);
-  await page.waitForSelector(".card", { timeout: 15000 }).catch(async (e) => { console.error("STATUS:", await page.locator("#status").innerText(), errors); throw e; });
+  await page.waitForSelector("#results .card", { timeout: 15000 }).catch(async (e) => { console.error("STATUS:", await page.locator("#status").innerText(), errors); throw e; });
   const text = await page.locator("#results").innerText();
   if (!/unlimited/.test(text)) throw new Error("no unlimited text: " + text);
   if (await page.evaluate(() => window.__pwn)) throw new Error("XSS executed");
@@ -90,7 +90,7 @@ const srv = http.createServer((q, r) => {
   }, [SOL_OWNER]);
   await page.goto("about:blank");
   await page.goto(`${base}/report.html#solana:${SOL_OWNER}`);
-  await page.waitForSelector(".card", { timeout: 15000 });
+  await page.waitForSelector("#results .card", { timeout: 15000 });
   if (!/unlimited/.test(await page.locator("#results").innerText())) throw new Error("solana scan did not render");
   if (!(await page.locator("#results a").first().getAttribute("href")).includes("solscan.io/account/")) throw new Error("bad solana link");
   await page.locator("button", { hasText: "Revoke" }).first().click();
@@ -100,6 +100,17 @@ const srv = http.createServer((q, r) => {
   if (soltx.method !== "signAndSendTransaction" || raw[0] !== 1 || raw.slice(1, 65).some((b) => b !== 0)) throw new Error("bad solana tx");
   await page.goto(base + "/");
   await page.waitForSelector("h1");
+  const pay = page.locator("[data-pay]");
+  const expected = "solana:75DDnCQt4HPP5bF55oSBvSrwuCSLcC7U2w9tc3kMmyrA?amount=25&spl-token=EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+  if (!(await pay.getAttribute("href")).startsWith(expected)) throw new Error("bad donate link " + (await pay.getAttribute("href")));
+  for (const bad of ["0", "10000.01", "10001", "-5", "abc", "1e3", ""]) {
+    await page.fill("[data-amount]", bad);
+    if (await pay.getAttribute("href")) throw new Error("donate link enabled for " + bad);
+  }
+  await page.fill("[data-amount]", "10000");
+  if (!(await pay.getAttribute("href")).includes("amount=10000&")) throw new Error("max amount rejected");
+  await page.click("[data-preset='100']");
+  if (!(await pay.getAttribute("href")).includes("amount=100&")) throw new Error("preset failed");
   if (errors.length) throw new Error("page errors: " + errors.join("; "));
   console.log("ui smoke ok:", text.split("\n")[0]);
   await browser.close(); srv.close();

@@ -138,6 +138,10 @@ def test_scan_ignores_malformed_accounts_and_survives_lookup_failure():
         token_entry(ACCT_B, MINT_A, "not-an-address", "5"),
         token_entry(ACCT_B, MINT_A, WALLET_DELEGATE, "-3"),
         token_entry(ACCT_B, MINT_A, WALLET_DELEGATE, "abc"),
+        token_entry(ACCT_B, MINT_A, WALLET_DELEGATE, "1_000"),
+        token_entry(ACCT_B, MINT_A, WALLET_DELEGATE, " 5 "),
+        token_entry(ACCT_B, MINT_A, WALLET_DELEGATE, "+5"),
+        token_entry(ACCT_B, MINT_A, WALLET_DELEGATE, "\u0665"),
         token_entry(ACCT_B, "bad-mint", WALLET_DELEGATE, "5"),
     ]
     assert scan_solana(OWNER, reader=FakeSolana(bad)).approvals == []

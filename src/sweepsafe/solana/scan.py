@@ -39,7 +39,12 @@ def _parse_account(entry: Any, owner: str, program: str) -> Approval | None:
         delegate = info.get("delegate")
         if not delegate or not is_solana_address(delegate):
             return None
-        delegated = int(info["delegatedAmount"]["amount"])
+        raw_amount = info["delegatedAmount"]["amount"]
+        # Strict digits only, so Python and the JS viewer accept exactly the same inputs
+        # (int() would also take "1_000", " 5 " and "+5").
+        if not (isinstance(raw_amount, str) and raw_amount.isascii() and raw_amount.isdigit()):
+            return None
+        delegated = int(raw_amount)
         if delegated <= 0:
             return None
         mint = info["mint"]

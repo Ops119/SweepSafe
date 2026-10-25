@@ -1068,7 +1068,7 @@
     if (key !== approval.owner) {
       throw new Error("Connect the wallet " + shortAddress(approval.owner) + " to revoke this delegation (connected: " + (key ? shortAddress(key) : "none") + ").");
     }
-    const latest = await reader.call("getLatestBlockhash", [{ commitment: "finalized" }]);
+    const latest = await reader.call("getLatestBlockhash", [{ commitment: "confirmed" }]);
     const tx = buildSolanaRevokeTx(approval, latest.value.blockhash);
     const sent = await provider.request({ method: "signAndSendTransaction", params: { message: tx.base58 } });
     return sent && sent.signature ? sent.signature : sent;

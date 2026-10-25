@@ -199,6 +199,11 @@ def _solana_reader(
 def _run_solana_scan(
     args: argparse.Namespace, settings: Settings, transport: Transport | None
 ) -> tuple[ScanResult, _SolanaDeps]:
+    for flag, used in (("--from-block", args.from_block is not None), ("--reset", args.reset)):
+        if used:
+            print(
+                f"note: {flag} has no effect on Solana scans (nothing is cached).", file=sys.stderr
+            )
     reader = _solana_reader(args, settings, transport)
     return scan_solana(args.address, reader=reader), _SolanaDeps(reader)
 
@@ -280,7 +285,7 @@ def _revoke_solana(args: argparse.Namespace, result: ScanResult, deps: _SolanaDe
     if not chosen:
         print("Nothing to revoke for that selection.")
         return 0
-    blockhash = deps.reader.call("getLatestBlockhash", [{"commitment": "finalized"}])["value"][
+    blockhash = deps.reader.call("getLatestBlockhash", [{"commitment": "confirmed"}])["value"][
         "blockhash"
     ]
     txs = [build_solana_revoke(i.approval, blockhash) for i in chosen]

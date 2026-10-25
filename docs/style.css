@@ -1,5 +1,5 @@
-:root{--bg:#f4f3ff;--fg:#14122b;--muted:#5a5878;--card:#fff;--line:#dcd9f5;--accent:#6d3cff;--accent2:#00b8d9;--accent-fg:#fff;
---low:#0f9d58;--medium:#e08600;--high:#ea4b1f;--critical:#d6194b;--code:#ece9ff;--low-bg:#d9f6e6;--medium-bg:#ffefcf;--high-bg:#ffe0d6;--critical-bg:#ffd9e3}
+:root{--bg:#f4f3ff;--fg:#14122b;--muted:#5a5878;--card:#fff;--line:#dcd9f5;--accent:#6d3cff;--accent2:#0070a0;--accent-fg:#fff;
+--low:#0a6a38;--medium:#8a4d00;--high:#b43010;--critical:#b0113c;--code:#ece9ff;--low-bg:#d9f6e6;--medium-bg:#ffefcf;--high-bg:#ffe0d6;--critical-bg:#ffd9e3}
 @media (prefers-color-scheme:dark){:root{--bg:#0c0a1d;--fg:#ecebff;--muted:#a4a1c8;--card:#17142e;--line:#2c2850;
 --accent:#9b7bff;--accent2:#2ee6ff;--accent-fg:#0c0a1d;--low:#3ddc97;--medium:#ffb534;--high:#ff7a4d;--critical:#ff5c85;--code:#201c40;
 --low-bg:#12392b;--medium-bg:#3d2c0c;--high-bg:#3f1d12;--critical-bg:#40121f}}
@@ -11,7 +11,9 @@ header.top .wrap{display:flex;align-items:center;justify-content:space-between;p
 .brand{font-weight:800;color:var(--accent);text-decoration:none}
 nav a{margin-left:16px;color:var(--muted);text-decoration:none}
 nav a:hover{color:var(--fg)}
-h1{font-size:clamp(1.9rem,6vw,2.8rem);line-height:1.15;margin:40px 0 12px;background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;color:transparent}
+h1{font-size:clamp(1.9rem,6vw,2.8rem);line-height:1.15;margin:40px 0 12px;color:var(--accent)}
+@supports (-webkit-background-clip:text) or (background-clip:text){h1{background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;background-clip:text;color:transparent}}
+@media (forced-colors:active){h1{background:none;color:CanvasText}}
 h2{font-size:1.2rem;margin:0 0 6px}
 .lead{font-size:1.15rem;color:var(--muted);margin:0 0 24px}
 .cmd{display:flex;gap:8px;align-items:stretch;margin:16px 0}
@@ -42,3 +44,4 @@ input,select{font:inherit;padding:10px 12px;border-radius:8px;border:1px solid v
 .hidden{display:none}
 progress{width:100%}
 h1.small{font-size:1.8rem}
+.donate{border-top:4px solid var(--accent2)}.donate input{width:7rem}.btn[aria-disabled="true"]{opacity:.5;pointer-events:none}
