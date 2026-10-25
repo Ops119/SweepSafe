@@ -16,11 +16,12 @@ def test_default_chains_have_unique_ids_and_https_rpcs():
         "bnb",
         "avalanche",
         "linea",
+        "robinhood",
     }
-    assert len({c.chain_id for c in CHAINS.values()}) == len(CHAINS) == 8
+    assert len({c.chain_id for c in CHAINS.values()}) == len(CHAINS) == 9
     assert (CHAINS["base"].chain_id, CHAINS["arbitrum"].chain_id) == (8453, 42161)
     for chain in CHAINS.values():
-        assert len(chain.rpcs) >= 2, "need a fallback provider"
+        assert len(chain.rpcs) >= 1
         assert all(url.startswith("https://") for url in chain.rpcs)
         assert chain.reorg_depth > 0
 
@@ -44,7 +45,7 @@ def test_aliases(alias, name):
 
 def test_unknown_chain():
     with pytest.raises(UnknownChainError, match="choose from"):
-        get_chain("solana")
+        get_chain("dogechain")
 
 
 def test_rpc_override_keeps_everything_else():

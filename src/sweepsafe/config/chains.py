@@ -115,8 +115,18 @@ LINEA = Chain(
     reorg_depth=256,
 )
 
+ROBINHOOD = Chain(
+    name="robinhood",
+    chain_id=4663,
+    rpcs=("https://rpc.mainnet.chain.robinhood.com",),
+    explorer="https://robinhoodchain.blockscout.com",
+    blockscout="https://robinhoodchain.blockscout.com",
+    reorg_depth=256,  # Arbitrum Orbit chain
+)
+
 CHAINS: dict[str, Chain] = {
-    c.name: c for c in (ETHEREUM, BASE, ARBITRUM, OPTIMISM, POLYGON, BNB, AVALANCHE, LINEA)
+    c.name: c
+    for c in (ETHEREUM, BASE, ARBITRUM, OPTIMISM, POLYGON, BNB, AVALANCHE, LINEA, ROBINHOOD)
 }
 
 _ALIASES = {
@@ -129,6 +139,8 @@ _ALIASES = {
     "bsc": "bnb",
     "bnb-chain": "bnb",
     "avax": "avalanche",
+    "robinhood-chain": "robinhood",
+    "hood": "robinhood",
 }
 
 

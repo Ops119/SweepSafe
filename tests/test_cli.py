@@ -122,7 +122,7 @@ def test_invalid_address_is_a_usage_error(capsys):
 
 
 def test_unknown_chain_is_a_clean_error(transport, tmp_path, capsys):
-    assert run(["scan", OWNER, "-c", "solana"], transport, tmp_path) == 1
+    assert run(["scan", OWNER, "-c", "dogechain"], transport, tmp_path) == 1
     assert "unknown chain" in capsys.readouterr().err
 
 

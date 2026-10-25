@@ -619,3 +619,98 @@ test("sendRevoke surfaces user rejections and failed chain switches", async () =
   stuck.request = async (req) => (req.method === "wallet_switchEthereumChain" ? null : original(req));
   await assert.rejects(() => S.sendRevoke(stuck, S.CHAINS.base, approval), /not on base/);
 });
+
+// ------------------------------------------------------------------ Solana
+const bytes32 = (n) => new Uint8Array(32).fill(n);
+const SOL_OWNER = S.b58encode(bytes32(1));
+const SOL_MINT = S.b58encode(bytes32(2));
+const SOL_ACCT = S.b58encode(bytes32(4));
+const SOL_WALLET = S.b58encode(bytes32(7));
+const SOL_PROGRAM = S.b58encode(bytes32(8));
+const SOL_HASH = S.b58encode(bytes32(9));
+function solEntry(pubkey, mint, delegate, amount, decimals = 6) {
+  const info = { mint, owner: SOL_OWNER, delegatedAmount: { amount, decimals } };
+  if (delegate) info.delegate = delegate;
+  return { pubkey, account: { data: { parsed: { info } } } };
+}
+function solReader(entries, extra = {}) {
+  return {
+    async call(method, params) {
+      if (method === "getTokenAccountsByOwner") {
+        return { value: params[1].programId === S.SOLANA.tokenProgram ? entries : [] };
+      }
+      if (method === "getSlot") return 99;
+      if (method === "getLatestBlockhash") return { value: { blockhash: SOL_HASH } };
+      if (method === "getAccountInfo") {
+        if (extra.failInfo) throw new S.RpcError(-32000, "behind");
+        if (params[0] === SOL_PROGRAM) return { value: { executable: true, owner: "Loader" } };
+        if (params[0] === SOL_WALLET) return { value: { executable: false, owner: S.SOLANA.systemProgram } };
+        return { value: null };
+      }
+      throw new Error("unexpected " + method);
+    },
+  };
+}
+
+test("base58 known vectors and program ids", () => {
+  const enc = (s) => S.b58encode(new TextEncoder().encode(s));
+  assert.equal(enc("Hello World!"), "2NEpo7TZRRrLZSi2U");
+  assert.deepEqual([...S.b58decode("112")], [0, 0, 1]);
+  assert.equal(Buffer.from(S.b58decode(S.SOLANA.tokenProgram)).toString("hex"), "06ddf6e1d765a193d9cbe146ceeb79ac1cb485ed5f5b37913a8cf5857eff00a9");
+  assert.equal(Buffer.from(S.b58decode(S.SOLANA.token2022Program)).toString("hex"), "06ddf6e1ee758fde18425dbce46ccddab61afc4d83b90d27febdf928d8a18bfc");
+  for (const bad of ["", "0OIl", null]) assert.throws(() => S.b58decode(bad), S.AbiError);
+  assert.ok(S.isSolanaAddress(SOL_OWNER) && !S.isSolanaAddress("0x" + "11".repeat(20)) && !S.isSolanaAddress(S.b58encode(new Uint8Array(31))));
+});
+
+test("scanSolana scores delegations like Python", async () => {
+  const reader = solReader([
+    solEntry(SOL_ACCT, SOL_MINT, SOL_PROGRAM, (2n ** 64n - 1n).toString()),
+    solEntry(S.b58encode(bytes32(5)), SOL_MINT, SOL_WALLET, "1500000"),
+    solEntry(S.b58encode(bytes32(6)), SOL_MINT, null, "0"),
+    solEntry(S.b58encode(bytes32(6)), SOL_MINT, "nope", "5"),
+    solEntry(S.b58encode(bytes32(6)), SOL_MINT, SOL_WALLET, "-3"),
+    { pubkey: SOL_ACCT },
+  ]);
+  const out = await S.scanSolana({ reader, rules, owner: SOL_OWNER, nowSec: 5 });
+  assert.deepEqual(out.approvals.map((a) => [a.risk.score, a.risk.level]), [[40, "medium"], [30, "medium"]]);
+  assert.equal(out.scannedToBlock, 99);
+  assert.ok(out.approvals[0].explanation.includes("unlimited") && out.approvals[1].explanation.includes("1.5"));
+  assert.ok(out.warnings.some((w) => w.includes("blocklist")));
+  await assert.rejects(() => S.scanSolana({ reader, rules, owner: "0x12" }), S.AbiError);
+  const down = await S.scanSolana({ reader: solReader([solEntry(SOL_ACCT, SOL_MINT, SOL_WALLET, "5")], { failInfo: true }), rules, owner: SOL_OWNER });
+  assert.ok(down.warnings.some((w) => w.includes("Could not tell")));
+});
+
+test("unsigned Solana revoke transaction layout", () => {
+  const approval = { owner: SOL_OWNER, tokenAccount: SOL_ACCT, tokenProgram: S.SOLANA.tokenProgram };
+  const tx = S.buildSolanaRevokeTx(approval, SOL_HASH);
+  assert.equal(tx.raw[0], 1);
+  assert.ok(tx.raw.slice(1, 65).every((b) => b === 0)); // empty signature: unsigned
+  assert.deepEqual([...tx.raw.slice(65, 68)], [1, 0, 1]);
+  assert.deepEqual([...tx.raw.slice(-7)], [1, 2, 2, 1, 0, 1, 5]);
+  assert.equal(tx.base64, Buffer.from(tx.raw).toString("base64"));
+  assert.deepEqual([...S.b58decode(tx.base58)], [...tx.raw]);
+  assert.throws(() => S.buildSolanaRevokeTx(approval, S.b58encode(new Uint8Array(5))), S.AbiError);
+});
+
+test("sendSolanaRevoke refuses a different connected key and never sends", async () => {
+  const approval = { owner: SOL_OWNER, tokenAccount: SOL_ACCT, tokenProgram: S.SOLANA.tokenProgram };
+  const calls = [];
+  const provider = (key) => ({
+    async connect() { return { publicKey: { toString: () => key } }; },
+    async request(req) { calls.push(req.method); return { signature: "sig123" }; },
+  });
+  await assert.rejects(() => S.sendSolanaRevoke(provider(SOL_WALLET), solReader([]), approval), /Connect the wallet/);
+  assert.deepEqual(calls, []);
+  assert.equal(await S.sendSolanaRevoke(provider(SOL_OWNER), solReader([]), approval), "sig123");
+  assert.deepEqual(calls, ["signAndSendTransaction"]);
+});
+
+test("solana share links round trip", () => {
+  assert.equal(S.buildHash("solana", SOL_OWNER), "#solana:" + SOL_OWNER);
+  assert.deepEqual(S.parseHash("#solana:" + SOL_OWNER), { chain: "solana", address: SOL_OWNER });
+  for (const bad of ["#solana:abc", "#solana:" + SOL_OWNER + "!", "#solana:0x" + "1".repeat(40)]) assert.equal(S.parseHash(bad), null);
+  assert.throws(() => S.buildHash("solana", "0x12"), S.AbiError);
+  assert.equal(S.getChain("hood").name, "robinhood");
+  assert.equal(S.getChain("solana"), null); // not an EVM chain
+});

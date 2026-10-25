@@ -12,8 +12,8 @@ from pathlib import Path
 
 from sweepsafe import __version__
 from sweepsafe.abi import AbiError, normalize_address
-from sweepsafe.chains.rpc import ChainMismatchError, RpcError, RpcUnavailableError
-from sweepsafe.chains.transport import Transport, TransportError
+from sweepsafe.chains.rpc import ChainMismatchError, RpcClient, RpcError, RpcUnavailableError
+from sweepsafe.chains.transport import Transport, TransportError, UrllibTransport
 from sweepsafe.config.chains import CHAINS, UnknownChainError
 from sweepsafe.config.settings import Settings
 from sweepsafe.models import ScanResult, ScoredApproval
@@ -21,6 +21,8 @@ from sweepsafe.report import render_report
 from sweepsafe.revoker import build_revoke_txs, select_for_revoke
 from sweepsafe.scanner import ScanError
 from sweepsafe.service import Dependencies, open_dependencies, scan_wallet
+from sweepsafe.solana import SOLANA_RPCS, is_solana_address, scan_solana
+from sweepsafe.solana import build_revoke_tx as build_solana_revoke
 
 EXPECTED_ERRORS = (
     UnknownChainError,
@@ -37,10 +39,29 @@ _COLORS = {"critical": "31", "high": "33", "medium": "93", "low": "32"}
 
 
 def _address(value: str) -> str:
+    """Accept an EVM (0x...) or Solana (base58) address; the chain decides which is valid."""
+    if is_solana_address(value):
+        return value
     try:
         return normalize_address(value)
     except AbiError as exc:
         raise argparse.ArgumentTypeError(str(exc)) from exc
+
+
+def _is_solana(chain: str) -> bool:
+    return chain.strip().lower() == "solana"
+
+
+def _check_address_for_chain(parser: argparse.ArgumentParser, args: argparse.Namespace) -> None:
+    for name in ("address", "token", "spender"):
+        value = getattr(args, name, None)
+        if not value:
+            continue
+        if _is_solana(args.chain) != is_solana_address(value):
+            parser.error(
+                f"{name} {value!r} is not a valid {'Solana' if _is_solana(args.chain) else 'EVM'}"
+                f" address for chain {args.chain!r}"
+            )
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -53,8 +74,10 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command", required=True)
 
     def common(p: argparse.ArgumentParser) -> None:
-        p.add_argument("address", type=_address, help="wallet address (0x...)")
-        p.add_argument("-c", "--chain", default="ethereum", help=f"one of: {', '.join(CHAINS)}")
+        p.add_argument("address", type=_address, help="wallet address (0x... or Solana base58)")
+        p.add_argument(
+            "-c", "--chain", default="ethereum", help=f"one of: {', '.join([*CHAINS, 'solana'])}"
+        )
         p.add_argument(
             "--rpc",
             action="append",
@@ -126,6 +149,8 @@ def _run_scan(
     settings = Settings.from_env()
     if args.db:
         settings = dataclasses.replace(settings, db_path=Path(args.db))
+    if _is_solana(args.chain):
+        return _run_solana_scan(args, settings, transport)
     deps = open_dependencies(args.chain, settings, rpc_urls=tuple(args.rpc), transport=transport)
     try:
         result = scan_wallet(
@@ -143,6 +168,39 @@ def _run_scan(
         deps.store.close()
         raise
     return result, deps
+
+
+class _NoStore:
+    def close(self) -> None:
+        return None
+
+
+@dataclasses.dataclass
+class _SolanaDeps:
+    reader: RpcClient
+    chain: None = None
+    store: _NoStore = dataclasses.field(default_factory=_NoStore)
+
+
+def _solana_reader(
+    args: argparse.Namespace, settings: Settings, transport: Transport | None
+) -> RpcClient:
+    urls = tuple(args.rpc) or settings.rpc_overrides("solana") or SOLANA_RPCS
+    return RpcClient(
+        urls,
+        transport or UrllibTransport(),
+        retries=settings.retries,
+        backoff=settings.backoff,
+        min_interval=settings.request_interval,
+        timeout=settings.timeout,
+    )
+
+
+def _run_solana_scan(
+    args: argparse.Namespace, settings: Settings, transport: Transport | None
+) -> tuple[ScanResult, _SolanaDeps]:
+    reader = _solana_reader(args, settings, transport)
+    return scan_solana(args.address, reader=reader), _SolanaDeps(reader)
 
 
 def _print_scan(result: ScanResult, items: list[ScoredApproval], color: bool) -> None:
@@ -182,6 +240,8 @@ def _cmd_revoke(args: argparse.Namespace, transport: Transport | None) -> int:
         return 2
     result, deps = _run_scan(args, transport)
     deps.store.close()
+    if _is_solana(args.chain):
+        return _revoke_solana(args, result, deps)
     selected = select_for_revoke(
         result.approvals, min_score=args.min_score or 0, token=args.token, spender=args.spender
     )
@@ -209,6 +269,34 @@ def _cmd_revoke(args: argparse.Namespace, transport: Transport | None) -> int:
     return 0
 
 
+def _revoke_solana(args: argparse.Namespace, result: ScanResult, deps: _SolanaDeps) -> int:
+    chosen = [
+        i
+        for i in result.approvals
+        if i.risk.score >= (args.min_score or 0)
+        and (not args.token or i.approval.token == args.token)
+        and (not args.spender or i.approval.spender == args.spender)
+    ]
+    if not chosen:
+        print("Nothing to revoke for that selection.")
+        return 0
+    blockhash = deps.reader.call("getLatestBlockhash", [{"commitment": "finalized"}])["value"][
+        "blockhash"
+    ]
+    txs = [build_solana_revoke(i.approval, blockhash) for i in chosen]
+    if args.json:
+        print(json.dumps([tx.model_dump() for tx in txs], indent=2))
+        return 0
+    print(f"{len(txs)} unsigned revoke transaction(s) for {result.owner} on solana.")
+    print(
+        "Nothing was signed or sent. Each transaction expires in about a minute, so sign\n"
+        "and send it promptly from YOUR wallet (the owner above). Re-run for fresh ones.\n"
+    )
+    for number, tx in enumerate(txs, 1):
+        print(f"#{number} {tx.description}\n  base64  {tx.transaction_base64}\n")
+    return 0
+
+
 def _cmd_report(args: argparse.Namespace, transport: Transport | None) -> int:
     result, deps = _run_scan(args, transport)
     deps.store.close()
@@ -223,6 +311,7 @@ def _cmd_report(args: argparse.Namespace, transport: Transport | None) -> int:
 def _cmd_chains(_args: argparse.Namespace, _transport: Transport | None) -> int:
     for chain in CHAINS.values():
         print(f"{chain.name:10} id {chain.chain_id:<6} {len(chain.rpcs)} public RPCs")
+    print(f"{'solana':10} SPL token delegations, {len(SOLANA_RPCS)} public RPCs")
     return 0
 
 
@@ -231,7 +320,10 @@ _COMMANDS = {"scan": _cmd_scan, "revoke": _cmd_revoke, "report": _cmd_report, "c
 
 def main(argv: Sequence[str] | None = None, *, transport: Transport | None = None) -> int:
     """Entry point. ``transport`` is injectable so tests never touch the network."""
-    args = build_parser().parse_args(argv)
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    if args.command != "chains":
+        _check_address_for_chain(parser, args)
     try:
         return _COMMANDS[args.command](args, transport)
     except KeyboardInterrupt:

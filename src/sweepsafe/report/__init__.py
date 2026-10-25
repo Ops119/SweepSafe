@@ -14,6 +14,7 @@ from sweepsafe.config.settings import DEFAULT_PAGES_URL
 from sweepsafe.explain.format import format_amount, short_address
 from sweepsafe.models import ScanResult, ScoredApproval
 from sweepsafe.risk.rules import Rules, default_rules
+from sweepsafe.solana.scan import SOLANA_EXPLORER
 
 _CSS = """
 :root{--bg:#fff;--fg:#15171a;--muted:#5b6470;--card:#f5f6f8;--line:#dde1e7;
@@ -56,8 +57,9 @@ def _render_item(item: ScoredApproval, explorer: str | None, rules: Rules) -> st
     level = _level_class(item.risk.level, rules)
     spender = escape(short_address(a.spender))
     if explorer:
+        path = "account" if a.chain == "solana" else "address"
         spender = (
-            f'<a href="{escape(explorer, quote=True)}/address/{escape(a.spender, quote=True)}" '
+            f'<a href="{escape(explorer, quote=True)}/{path}/{escape(a.spender, quote=True)}" '
             f'target="_blank" rel="noopener noreferrer">{spender}</a>'
         )
     findings = "".join(f"<li>{escape(f.message)}</li>" for f in item.risk.findings)
@@ -78,7 +80,10 @@ def render_report(
     result: ScanResult, *, pages_url: str = DEFAULT_PAGES_URL, rules: Rules | None = None
 ) -> str:
     rules = rules or default_rules()
-    explorer = CHAINS[result.chain].explorer if result.chain in CHAINS else None
+    if result.chain == "solana":
+        explorer = SOLANA_EXPLORER
+    else:
+        explorer = CHAINS[result.chain].explorer if result.chain in CHAINS else None
     counts = {lv.name: 0 for lv in rules.levels}
     for item in result.approvals:
         counts[item.risk.level] = counts.get(item.risk.level, 0) + 1

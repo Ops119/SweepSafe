@@ -48,6 +48,9 @@ class Approval(BaseModel):
     spender_is_contract: bool | None = None
     verification: Verification = Verification.UNKNOWN
     blocklisted: bool = False
+    # Solana only: the SPL token account holding the delegation, and its token program.
+    token_account: str | None = None
+    token_program: str | None = None
 
     @field_serializer("allowance")
     def _allowance_as_string(self, value: int) -> str:

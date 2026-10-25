@@ -130,10 +130,22 @@
       reorgDepth: 256,
       startBlock: 0,
     },
+    robinhood: {
+      name: "robinhood",
+      id: 4663,
+      rpcs: [
+        "https://rpc.mainnet.chain.robinhood.com",
+      ],
+      explorer: "https://robinhoodchain.blockscout.com",
+      blockscout: "https://robinhoodchain.blockscout.com",
+      reorgDepth: 256,
+      startBlock: 0,
+    },
   };
   const ALIASES = {
     eth: "ethereum", mainnet: "ethereum", arb: "arbitrum", "arbitrum-one": "arbitrum",
-    op: "optimism", matic: "polygon", bsc: "bnb", "bnb-chain": "bnb", avax: "avalanche" };
+    op: "optimism", matic: "polygon", bsc: "bnb", "bnb-chain": "bnb", avax: "avalanche",
+    "robinhood-chain": "robinhood", hood: "robinhood" };
 
   // Keep these lists identical to src/sweepsafe/chains/rpc.py (checked by the parity tests).
   const RANGE_HINTS = [
@@ -910,13 +922,172 @@
     };
   }
 
+
+  // ---------------------------------------------------------------- Solana (SPL token delegations)
+  const SOLANA = {
+    name: "solana",
+    clusterId: 101,
+    rpcs: ["https://solana-rpc.publicnode.com", "https://api.mainnet-beta.solana.com"],
+    explorer: "https://solscan.io",
+    tokenProgram: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+    token2022Program: "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+    systemProgram: "11111111111111111111111111111111",
+  };
+  const B58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+  const U64_HALF = 1n << 63n;
+
+  function b58encode(bytes) {
+    let zeros = 0;
+    while (zeros < bytes.length && bytes[zeros] === 0) zeros++;
+    let n = 0n;
+    for (const b of bytes) n = (n << 8n) | BigInt(b);
+    let out = "";
+    while (n > 0n) { out = B58[Number(n % 58n)] + out; n /= 58n; }
+    return "1".repeat(zeros) + out;
+  }
+  function b58decode(text) {
+    if (typeof text !== "string" || !text) throw new AbiError("empty base58 string");
+    let n = 0n;
+    for (const c of text) {
+      const i = B58.indexOf(c);
+      if (i < 0) throw new AbiError("invalid base58 character");
+      n = n * 58n + BigInt(i);
+    }
+    const bytes = [];
+    while (n > 0n) { bytes.unshift(Number(n & 0xffn)); n >>= 8n; }
+    let zeros = 0;
+    while (zeros < text.length && text[zeros] === "1") zeros++;
+    return Uint8Array.from([...new Array(zeros).fill(0), ...bytes]);
+  }
+  function isSolanaAddress(value) {
+    if (typeof value !== "string" || value.length < 32 || value.length > 44) return false;
+    try { return b58decode(value).length === 32; } catch (e) { return false; }
+  }
+  function toBase64(bytes) {
+    if (typeof Buffer !== "undefined") return Buffer.from(bytes).toString("base64");
+    let bin = "";
+    for (const b of bytes) bin += String.fromCharCode(b);
+    return btoa(bin);
+  }
+  function compactU16(n) {
+    const out = [];
+    for (;;) {
+      const byte = n & 0x7f;
+      n >>= 7;
+      if (n) out.push(byte | 0x80); else { out.push(byte); return out; }
+    }
+  }
+
+  function parseSolanaAccount(entry, owner, program) {
+    try {
+      const info = entry.account.data.parsed.info;
+      const delegate = info.delegate;
+      if (!delegate || !isSolanaAddress(delegate)) return null;
+      if (!/^[0-9]+$/.test(String(info.delegatedAmount.amount))) return null;
+      const delegated = BigInt(info.delegatedAmount.amount);
+      if (delegated <= 0n) return null;
+      if (!isSolanaAddress(info.mint) || !isSolanaAddress(entry.pubkey)) return null;
+      const d = info.delegatedAmount.decimals;
+      return {
+        chain: "solana", owner, token: info.mint, spender: delegate,
+        allowance: delegated >= U64_HALF ? MAX_UINT256 : delegated,
+        tokenSymbol: null,
+        tokenDecimals: Number.isInteger(d) && d >= 0 && d <= MAX_DECIMALS ? d : null,
+        tokenAccount: entry.pubkey, tokenProgram: program,
+        timestamp: null, spenderIsContract: null, verification: "unknown", blocklisted: false,
+      };
+    } catch (e) {
+      return null;
+    }
+  }
+  async function isSolanaProgram(reader, address) {
+    try {
+      const res = await reader.call("getAccountInfo", [address, { encoding: "base64", dataSlice: { offset: 0, length: 0 } }]);
+      const account = res && res.value;
+      if (!account) return false;
+      if (account.executable === true) return true;
+      return account.owner === SOLANA.systemProgram ? false : null;
+    } catch (e) {
+      return null;
+    }
+  }
+  async function scanSolana(args) {
+    const { reader, rules } = args;
+    const owner = args.owner;
+    if (!isSolanaAddress(owner)) throw new AbiError("not a valid Solana address");
+    const warnings = [
+      "Solana: no public scam-address list is configured, so blocklist checks are skipped.",
+      "Solana: program source verification is not available, so programs show as unknown.",
+    ];
+    const approvals = [];
+    for (const program of [SOLANA.tokenProgram, SOLANA.token2022Program]) {
+      const res = await reader.call("getTokenAccountsByOwner", [owner, { programId: program }, { encoding: "jsonParsed" }]);
+      if (!res || !Array.isArray(res.value)) throw new TransportError("getTokenAccountsByOwner returned an unexpected shape");
+      for (const entry of res.value) {
+        const a = parseSolanaAccount(entry, owner, program);
+        if (a) approvals.push(a);
+      }
+    }
+    const slot = await reader.call("getSlot", []);
+    const kinds = new Map();
+    const scored = [];
+    for (const a of approvals) {
+      if (!kinds.has(a.spender)) {
+        kinds.set(a.spender, await isSolanaProgram(reader, a.spender));
+        if (kinds.get(a.spender) === null) warnings.push("Could not tell what kind of account " + a.spender + " is.");
+      }
+      a.spenderIsContract = kinds.get(a.spender);
+      const risk = evaluateRisk(rules, {
+        allowance: a.allowance, spender_is_contract: a.spenderIsContract,
+        verification: "unknown", blocklisted: false, age_days: null,
+      });
+      scored.push({ approval: a, risk, explanation: explainApproval(rules, a, risk) });
+    }
+    scored.sort((x, y) => y.risk.score - x.risk.score || (x.approval.token < y.approval.token ? -1 : x.approval.token > y.approval.token ? 1 : x.approval.spender < y.approval.spender ? -1 : 1));
+    return {
+      chain: "solana", owner, scannedToBlock: Number.isInteger(slot) ? slot : 0,
+      generatedAt: args.nowSec != null ? args.nowSec : Math.floor(Date.now() / 1000),
+      approvals: scored, warnings,
+    };
+  }
+  /** Unsigned legacy transaction (one empty signature slot) revoking the delegate. */
+  function buildSolanaRevokeTx(approval, blockhash) {
+    const keys = [approval.owner, approval.tokenAccount, approval.tokenProgram].map(b58decode);
+    const recent = b58decode(blockhash);
+    if (keys.some((k) => k.length !== 32) || recent.length !== 32) throw new AbiError("addresses and blockhash must be 32 bytes");
+    const message = [1, 0, 1, ...compactU16(3)];
+    for (const k of keys) message.push(...k);
+    message.push(...recent, ...compactU16(1), 2, ...compactU16(2), 1, 0, ...compactU16(1), 5);
+    const raw = Uint8Array.from([...compactU16(1), ...new Array(64).fill(0), ...message]);
+    return { raw, base64: toBase64(raw), base58: b58encode(raw) };
+  }
+  /** Phantom-style provider. Refuses unless the connected key IS the scanned owner. */
+  async function sendSolanaRevoke(provider, reader, approval) {
+    const resp = await provider.connect();
+    const key = String((resp && resp.publicKey) || provider.publicKey || "");
+    if (key !== approval.owner) {
+      throw new Error("Connect the wallet " + shortAddress(approval.owner) + " to revoke this delegation (connected: " + (key ? shortAddress(key) : "none") + ").");
+    }
+    const latest = await reader.call("getLatestBlockhash", [{ commitment: "finalized" }]);
+    const tx = buildSolanaRevokeTx(approval, latest.value.blockhash);
+    const sent = await provider.request({ method: "signAndSendTransaction", params: { message: tx.base58 } });
+    return sent && sent.signature ? sent.signature : sent;
+  }
+
   // ---------------------------------------------------------------- share links + revoke
   function buildHash(chainName, address) {
+    if (chainName === "solana") {
+      if (!isSolanaAddress(address)) throw new AbiError("not a valid Solana address");
+      return "#solana:" + address;
+    }
     return "#" + chainName + ":" + normalizeAddress(address);
   }
   /** "#base:0xabc..." -> {chain, address} or null. Anything malformed is rejected. */
   function parseHash(hash) {
-    const m = /^#?([a-z0-9-]{2,20}):(0x[0-9a-fA-F]{40})$/.exec(String(hash || "").trim());
+    const text = String(hash || "").trim();
+    const sol = /^#?solana:([1-9A-HJ-NP-Za-km-z]{32,44})$/.exec(text);
+    if (sol) return isSolanaAddress(sol[1]) ? { chain: "solana", address: sol[1] } : null;
+    const m = /^#?([a-z0-9-]{2,20}):(0x[0-9a-fA-F]{40})$/.exec(text);
     if (!m) return null;
     const chain = getChain(m[1]);
     return chain ? { chain: chain.name, address: m[2].toLowerCase() } : null;
@@ -955,7 +1126,8 @@
   }
 
   return {
-    APPROVAL_TOPIC, SELECTORS, MAX_UINT256, CHAINS, BLOCKLIST_URLS, SOURCIFY_BASE,
+    APPROVAL_TOPIC, SELECTORS, MAX_UINT256, CHAINS, SOLANA,
+    b58encode, b58decode, isSolanaAddress, scanSolana, buildSolanaRevokeTx, sendSolanaRevoke, parseSolanaAccount, BLOCKLIST_URLS, SOURCIFY_BASE,
     RANGE_HINTS, RATE_HINTS, REVERT_HINTS,
     AbiError, ScanError, ChainMismatchError, RpcUnavailableError, TransportError, RpcError,
     isAddress, normalizeAddress, addressToTopic, topicToAddress, encodeUint256, encodeAllowanceCall,

@@ -93,3 +93,53 @@ def test_aliases_resolve_identically():
 
     for alias, name in js_constants()["aliases"].items():
         assert get_chain(alias).name == name
+
+
+def test_solana_constants_and_transaction_bytes_match():
+    from sweepsafe.models import Approval
+    from sweepsafe.solana import (
+        SOLANA_EXPLORER,
+        SOLANA_RPCS,
+        TOKEN_2022_PROGRAM,
+        TOKEN_PROGRAM,
+        b58encode,
+        build_revoke_tx,
+    )
+
+    owner, acct, hashed = (b58encode(bytes([n] * 32)) for n in (1, 4, 9))
+    script = (
+        "const S=require(process.argv[1]);"
+        "const t=S.buildSolanaRevokeTx({owner:process.argv[2],tokenAccount:process.argv[3],"
+        "tokenProgram:S.SOLANA.tokenProgram},process.argv[4]);"
+        "console.log(JSON.stringify({s:S.SOLANA,b64:t.base64,b58:t.base58}))"
+    )
+    out = subprocess.run(
+        ["node", "-e", script, str(DOCS / "sweepsafe.js"), owner, acct, hashed],
+        capture_output=True,
+        text=True,
+        check=True,
+        timeout=30,
+    ).stdout
+    js = json.loads(out)
+    assert tuple(js["s"]["rpcs"]) == tuple(SOLANA_RPCS)
+    assert js["s"]["explorer"] == SOLANA_EXPLORER
+    assert (js["s"]["tokenProgram"], js["s"]["token2022Program"]) == (
+        TOKEN_PROGRAM,
+        TOKEN_2022_PROGRAM,
+    )
+    py = build_revoke_tx(
+        Approval(
+            chain="solana",
+            owner=owner,
+            token=acct,
+            spender=owner,
+            allowance=1,
+            block_number=0,
+            tx_hash="",
+            token_account=acct,
+            token_program=TOKEN_PROGRAM,
+        ),
+        hashed,
+    )
+    assert js["b64"] == py.transaction_base64
+    assert js["b58"] == py.transaction_base58

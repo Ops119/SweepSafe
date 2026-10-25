@@ -27,6 +27,10 @@
     list.forEach(function (w) { box.appendChild(el("div", "warn", w)); });
   }
 
+  function solanaProvider() {
+    return (window.phantom && window.phantom.solana) || window.solana || null;
+  }
+
   function renderResults(result, chain) {
     var box = $("results");
     box.textContent = "";
@@ -45,7 +49,7 @@
       card.appendChild(el("p", "mono", "Spender " + a.spender));
       var row = el("div", "row");
       var link = el("a", "btn", "View spender");
-      link.href = chain.explorer + "/address/" + a.spender;
+      link.href = chain.explorer + (chain.name === "solana" ? "/account/" : "/address/") + a.spender;
       link.target = "_blank";
       link.rel = "noopener noreferrer";
       row.appendChild(link);
@@ -59,12 +63,28 @@
   }
 
   async function revoke(btn, chain, approval) {
+    if (chain.name === "solana") return revokeSolana(btn, chain, approval);
     if (!window.ethereum) { setStatus("No browser wallet found. Install one, or use the CLI."); return; }
     btn.disabled = true;
     try {
       setStatus("Confirm the revoke in your wallet…");
       var hash = await S.sendRevoke(window.ethereum, chain, { owner: approval.owner, token: approval.token, spender: approval.spender });
       setStatus("Revoke submitted: " + hash);
+    } catch (e) {
+      setStatus("Revoke not sent: " + (e && e.message ? e.message : "cancelled"));
+      btn.disabled = false;
+    }
+  }
+
+  async function revokeSolana(btn, chain, approval) {
+    var provider = solanaProvider();
+    if (!provider) { setStatus("No Solana wallet found. Install Phantom, or use the CLI."); return; }
+    btn.disabled = true;
+    try {
+      setStatus("Confirm the revoke in your wallet…");
+      var reader = S.createRpc({ urls: chain.rpcs });
+      var sig = await S.sendSolanaRevoke(provider, reader, approval);
+      setStatus("Revoke submitted: " + sig);
     } catch (e) {
       setStatus("Revoke not sent: " + (e && e.message ? e.message : "cancelled"));
       btn.disabled = false;
@@ -79,20 +99,28 @@
     renderWarnings([]);
     var bar = $("bar");
     try {
-      var chain = S.getChain(chainName);
-      address = S.normalizeAddress(address);
+      var isSol = chainName === "solana";
+      var chain = isSol ? { name: "solana", rpcs: S.SOLANA.rpcs, explorer: S.SOLANA.explorer } : S.getChain(chainName);
+      if (!chain) throw new Error("Unknown chain");
+      if (isSol) {
+        if (!S.isSolanaAddress(address)) throw new Error("Not a valid Solana address");
+      } else {
+        address = S.normalizeAddress(address);
+      }
       var rules = await loadRules();
       setStatus("Scanning " + chain.name + "…");
       bar.classList.remove("hidden");
       bar.value = 0;
-      var reader = S.createRpc({ urls: chain.rpcs, expectedChainId: chain.id });
+      var reader = S.createRpc({ urls: chain.rpcs, expectedChainId: isSol ? undefined : chain.id });
       var cache = (function () { try { return S.storageCache(window.localStorage); } catch (e) { return S.memoryCache(); } })();
-      var blocklist = await S.loadBlocklist({ fetchImpl: window.fetch.bind(window), urls: S.BLOCKLIST_URLS, cache: cache });
-      var result = await S.scanWallet({
-        reader: reader, chain: chain, rules: rules, owner: address, cache: cache, blocklist: blocklist,
-        fetchImpl: window.fetch.bind(window),
-        onProgress: function (done, total) { if (total > 0) bar.value = Math.min(100, Math.round((done / total) * 100)); },
-      });
+      var blocklist = isSol ? null : await S.loadBlocklist({ fetchImpl: window.fetch.bind(window), urls: S.BLOCKLIST_URLS, cache: cache });
+      var result = isSol
+        ? await S.scanSolana({ reader: reader, rules: rules, owner: address })
+        : await S.scanWallet({
+            reader: reader, chain: chain, rules: rules, owner: address, cache: cache, blocklist: blocklist,
+            fetchImpl: window.fetch.bind(window),
+            onProgress: function (done, total) { if (total > 0) bar.value = Math.min(100, Math.round((done / total) * 100)); },
+          });
       renderResults(result, chain);
       renderWarnings(result.warnings);
       setStatus(result.approvals.length + " active approval(s). Scanned to block " + result.scannedToBlock + ".");
@@ -113,6 +141,16 @@
   });
 
   $("connect").addEventListener("click", async function () {
+    if ($("chain").value === "solana") {
+      var sp = solanaProvider();
+      if (!sp) { setStatus("No Solana wallet found. You can still scan any address."); return; }
+      try {
+        var r = await sp.connect();
+        $("address").value = String((r && r.publicKey) || sp.publicKey || "");
+        setStatus("Wallet connected (read-only until you click Revoke).");
+      } catch (e) { setStatus("Wallet connection cancelled."); }
+      return;
+    }
     if (!window.ethereum) { setStatus("No browser wallet found. You can still scan any address."); return; }
     try {
       var accounts = await window.ethereum.request({ method: "eth_requestAccounts" });

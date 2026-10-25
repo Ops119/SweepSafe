@@ -63,6 +63,41 @@ const srv = http.createServer((q, r) => {
   await page.waitForFunction(() => window.__tx);
   const tx = await page.evaluate(() => window.__tx);
   if (tx.to !== TOKEN || !tx.data.startsWith("0x095ea7b3") || !tx.data.endsWith("0".repeat(64))) throw new Error("bad tx " + JSON.stringify(tx));
+  // Solana: scan via share link, hostile-free render, revoke refuses nothing and builds an unsigned tx.
+  const b58 = (n) => S.b58encode(new Uint8Array(32).fill(n));
+  const SOL_OWNER = b58(1), SOL_DELEGATE = b58(8), SOL_MINT = b58(2), SOL_ACCT = b58(4);
+  await page.unroute(/^https:\/\//);
+  await page.route(/^https:\/\//, async (route) => {
+    const req = route.request();
+    const cors = { "access-control-allow-origin": "*", "access-control-allow-headers": "*", "access-control-allow-methods": "*" };
+    if (req.method() === "OPTIONS") return route.fulfill({ status: 204, headers: cors });
+    const { method, params, id } = JSON.parse(req.postData());
+    const ok = (result) => route.fulfill({ json: { jsonrpc: "2.0", id, result }, headers: cors });
+    if (method === "getTokenAccountsByOwner") {
+      return ok({ value: params[1].programId === S.SOLANA.tokenProgram ? [{ pubkey: SOL_ACCT, account: { data: { parsed: { info: {
+        mint: SOL_MINT, owner: SOL_OWNER, delegate: SOL_DELEGATE, delegatedAmount: { amount: "18446744073709551615", decimals: 6 } } } } } }] : [] });
+    }
+    if (method === "getSlot") return ok(123);
+    if (method === "getLatestBlockhash") return ok({ value: { blockhash: b58(9) } });
+    if (method === "getAccountInfo") return ok({ value: { executable: true, owner: "Loader" } });
+    return route.fulfill({ status: 500, headers: cors });
+  });
+  await page.addInitScript(([owner]) => {
+    window.solana = {
+      async connect() { return { publicKey: { toString: () => owner } }; },
+      async request(r) { window.__soltx = r; return { signature: "sig1" }; },
+    };
+  }, [SOL_OWNER]);
+  await page.goto("about:blank");
+  await page.goto(`${base}/report.html#solana:${SOL_OWNER}`);
+  await page.waitForSelector(".card", { timeout: 15000 });
+  if (!/unlimited/.test(await page.locator("#results").innerText())) throw new Error("solana scan did not render");
+  if (!(await page.locator("#results a").first().getAttribute("href")).includes("solscan.io/account/")) throw new Error("bad solana link");
+  await page.locator("button", { hasText: "Revoke" }).first().click();
+  await page.waitForFunction(() => window.__soltx);
+  const soltx = await page.evaluate(() => window.__soltx);
+  const raw = Buffer.from(S.b58decode(soltx.params.message));
+  if (soltx.method !== "signAndSendTransaction" || raw[0] !== 1 || raw.slice(1, 65).some((b) => b !== 0)) throw new Error("bad solana tx");
   await page.goto(base + "/");
   await page.waitForSelector("h1");
   if (errors.length) throw new Error("page errors: " + errors.join("; "));

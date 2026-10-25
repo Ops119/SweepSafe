@@ -6,9 +6,9 @@
 
 **Find and revoke risky token approvals. Free. Non-custodial.**
 
-SweepSafe scans a wallet on Ethereum, Base, Arbitrum, Optimism, Polygon, BNB Chain, Avalanche or Linea for ERC-20 approvals, scores each one
-for risk, explains it in plain English, and builds the unsigned `approve(spender, 0)`
-transaction that removes it. It uses public RPCs and open scam lists, so it costs nothing to run.
+SweepSafe scans a wallet on Ethereum, Base, Arbitrum, Optimism, Polygon, BNB Chain, Avalanche, Linea or Robinhood Chain for ERC-20 approvals, and a Solana
+wallet for SPL token delegations. It scores each one for risk, explains it in plain English, and
+builds the unsigned transaction that removes it (`approve(spender, 0)` on EVM, `Revoke` on Solana). It uses public RPCs and open scam lists, so it costs nothing to run.
 
 - **Read-only by default.** It never asks for a private key or seed phrase and never signs for you.
 - **No backend, accounts or tracking.** The CLI runs locally; the web viewer runs entirely in your browser.
@@ -30,6 +30,18 @@ sweepsafe revoke 0xYourAddress --chain base --min-score 50   # prints unsigned t
 
 `revoke` requires `--min-score`, `--token`, `--spender` or `--all`. Exit codes: 0 ok, 1 findings
 or errors, 2 usage error, 130 interrupted.
+
+## Solana
+
+`sweepsafe scan <address> -c solana` lists SPL token *delegations*, which are Solana's equivalent
+of approvals: each token account can name one delegate and an amount. Both the Token and
+Token-2022 programs are covered. `revoke -c solana` prints unsigned base64 transactions that you
+sign and send from your own wallet; they expire in about a minute, so re-run for fresh ones. The
+web scanner does the same through Phantom-style wallets.
+
+Differences from EVM: there is no public scam-address list or source verification for Solana,
+so those checks are skipped (a warning says so), and delegations have no timestamp, so the
+stale-approval rule does not apply. A delegated amount of 2^63 or more counts as unlimited.
 
 ## How scoring works
 
@@ -61,7 +73,10 @@ CLI uses the standard library (`urllib`, `argparse`, `sqlite3`) plus `pydantic`,
 
 - Public RPCs can be slow or rate-limited; first scans of old wallets may take minutes.
 - A provider that silently truncates logs can hide approvals.
-- ERC-20 only: no NFT approvals and no Permit2.
+- ERC-20 and SPL tokens only: no NFT approvals and no Permit2.
+- Solana revoke in the browser relies on the wallet accepting a pre-built transaction and has
+  not been tested against a real wallet; the CLI's base64 transaction is the fallback.
+- Robinhood Chain has a single public RPC configured; override with `SWEEPSAFE_RPC_ROBINHOOD`.
 - Addresses you type are not EIP-55 checksum-validated.
 - Blocklists and verification services are third parties and can be wrong or offline.
 - The Pages demo calls those services from your browser, so it needs them to allow CORS.
