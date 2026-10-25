@@ -100,6 +100,16 @@ const srv = http.createServer((q, r) => {
   if (soltx.method !== "signAndSendTransaction" || raw[0] !== 1 || raw.slice(1, 65).some((b) => b !== 0)) throw new Error("bad solana tx");
   await page.goto(base + "/");
   await page.waitForSelector("h1");
+  // Demo card: real rules, sample data. unlimited + unverified contract + fresh = 35 + 20 = 55 (high).
+  await page.waitForFunction(() => document.getElementById("demo-badge").textContent !== "LOW 0");
+  if ((await page.locator("#demo-badge").innerText()) !== "HIGH 55") throw new Error("demo default " + (await page.locator("#demo-badge").innerText()));
+  const demoCases = [["limited", "verified", "30", "LOW 0"], ["unlimited", "scam", "30", "CRITICAL 100"], ["limited", "wallet", "400", "MEDIUM 45"]];
+  for (const [al, sp, age, want] of demoCases) {
+    await page.selectOption("#demo-allowance", al); await page.selectOption("#demo-spender", sp); await page.selectOption("#demo-age", age);
+    const got = await page.locator("#demo-badge").innerText();
+    if (got !== want) throw new Error(`demo ${al}/${sp}/${age}: ${got} != ${want}`);
+  }
+  if (!/Risk/.test(await page.locator("#demo-out").innerText())) throw new Error("demo explanation missing");
   const pay = page.locator("[data-pay]");
   const expected = "solana:75DDnCQt4HPP5bF55oSBvSrwuCSLcC7U2w9tc3kMmyrA?amount=25&spl-token=EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
   if (!(await pay.getAttribute("href")).startsWith(expected)) throw new Error("bad donate link " + (await pay.getAttribute("href")));

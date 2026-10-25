@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'">
 <title>SweepSafe — find and revoke risky token approvals</title>
 <meta name="description" content="Free, open-source, non-custodial scanner for risky ERC-20 approvals on Ethereum, Base and Arbitrum.">
 <link rel="stylesheet" href="style.css">
@@ -27,6 +27,18 @@
 <div class="card"><h2>Zero cost</h2><p>Public RPCs and open scam lists. No API keys, accounts or servers.</p></div>
 <div class="card"><h2>You sign</h2><p>Revokes are built as unsigned transactions. Your wallet signs; we never see keys.</p></div>
 </div>
+<section class="card demo" id="demo" aria-labelledby="demo-h">
+<h2 id="demo-h">Try the risk engine</h2>
+<p>Sample data only, nothing is scanned. Change the approval and watch the score, using the same rules as the scanner.</p>
+<div class="demo-controls">
+<label>Allowance <select id="demo-allowance"><option value="unlimited">Unlimited</option><option value="limited">500 USDC</option></select></label>
+<label>Spender <select id="demo-spender"><option value="unverified">Unverified contract</option><option value="verified">Verified contract</option><option value="wallet">Plain wallet</option><option value="scam">Known scam address</option></select></label>
+<label>Age <select id="demo-age"><option value="30">30 days</option><option value="400">400 days</option></select></label>
+</div>
+<div class="row"><span class="badge low" id="demo-badge">LOW 0</span></div>
+<pre class="demo-out" id="demo-out" aria-live="polite"></pre>
+<a class="btn primary" href="report.html">Scan a real wallet</a>
+</section>
 <div class="notice"><strong>Safety.</strong> SweepSafe never asks for a seed phrase or private key. The scanner is read-only until you click Revoke, and every revoke is confirmed in your own wallet. A low score is not a guarantee of safety.</div>
 <section class="card donate" id="donate" aria-labelledby="donate-h">
 <h2 id="donate-h">Support SweepSafe</h2>
@@ -44,7 +56,9 @@
 </section>
 <footer>MIT licensed · <a href="https://github.com/Ops119/SweepSafe">Source</a> · Risk rules are public in <a href="rules.json">rules.json</a>.</footer>
 </main>
+<script src="sweepsafe.js"></script>
 <script src="landing.js"></script>
+<script src="demo.js"></script>
 <script src="donate.js"></script>
 </body>
 </html>
