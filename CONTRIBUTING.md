@@ -4,7 +4,7 @@
 pip install -e . pytest pytest-cov ruff
 ruff check . && ruff format --check .
 pytest --cov=sweepsafe
-node --test tests/js/
+node --test tests/js/*.test.mjs
 ```
 
 Rules live in `src/sweepsafe/data/rules.json`; `docs/rules.json` must be an identical copy
