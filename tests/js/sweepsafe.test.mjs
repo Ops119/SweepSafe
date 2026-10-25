@@ -720,3 +720,13 @@ test("solana is throttled under the public limit and every chain has fallbacks",
   assert.ok(S.SOLANA.rpcs.length >= 3);
   for (const c of Object.values(S.CHAINS)) assert.ok(c.rpcs.length >= (c.name === "robinhood" ? 2 : 3), c.name);
 });
+
+test("Sourcify needs a real match; null match is unverified; odd bodies are unknown", async () => {
+  const eth = S.CHAINS.ethereum;
+  const noScout = { ...eth, blockscout: null };
+  const via = (body) => S.checkVerification({ fetchImpl: async () => res(body), chain: noScout, address: SPENDER_1 });
+  assert.equal(await via({ match: "match" }), "verified");
+  assert.equal(await via({ match: null }), "unverified");
+  assert.equal(await via({ something: 1 }), "unknown");
+  assert.equal(await via([1]), "unknown");
+});

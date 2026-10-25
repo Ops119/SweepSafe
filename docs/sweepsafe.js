@@ -864,7 +864,11 @@
     const answers = [];
     answers.push(
       await providerCheck(fetchImpl, SOURCIFY_BASE + "/" + chain.id + "/" + address,
-        (body) => (body && typeof body === "object" && Object.keys(body).length ? "verified" : "unknown"), args.timeoutMs)
+        (body) => {
+          if (!body || typeof body !== "object" || Array.isArray(body)) return "unknown";
+          if (body.match === "match" || body.match === "exact_match") return "verified";
+          return Object.prototype.hasOwnProperty.call(body, "match") ? "unverified" : "unknown";
+        }, args.timeoutMs)
     );
     if (answers[0] !== "verified" && chain.blockscout) {
       answers.push(

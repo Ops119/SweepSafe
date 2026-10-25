@@ -32,3 +32,30 @@ jobs:
         with:
           node-version: "22"
       - run: node --test tests/js/*.test.mjs
+  package:
+    # Proves the published artefact works: wheel built, installed clean, rules file included.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install build
+      - run: python -m build --wheel
+      - run: |
+          python -m venv /tmp/venv
+          /tmp/venv/bin/pip install dist/*.whl
+          cd /tmp
+          /tmp/venv/bin/sweepsafe chains
+          /tmp/venv/bin/python -c "from sweepsafe.risk import default_rules; r = default_rules(); assert r.rules; print('rules ok', len(r.rules))"
+          /tmp/venv/bin/sweepsafe scan --help > /dev/null
+  ui:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm install --no-save playwright@1.49.1
+      - run: npx playwright install --with-deps chromium
+      - run: node tests/ui/smoke.cjs

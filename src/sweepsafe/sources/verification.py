@@ -34,7 +34,14 @@ class SourcifyProvider:
             body = self.transport.get_json(url, timeout=self.timeout)
         except TransportError as exc:
             return Verification.UNVERIFIED if exc.status == 404 else Verification.UNKNOWN
-        return Verification.VERIFIED if isinstance(body, dict) and body else Verification.UNKNOWN
+        if not isinstance(body, dict):
+            return Verification.UNKNOWN
+        # Sourcify answers 200 with match "match"/"exact_match" when verified; an unverified
+        # contract is normally a 404, but a null match is treated the same way, never as verified.
+        match = body.get("match")
+        if match in ("match", "exact_match"):
+            return Verification.VERIFIED
+        return Verification.UNVERIFIED if "match" in body else Verification.UNKNOWN
 
 
 class BlockscoutProvider:

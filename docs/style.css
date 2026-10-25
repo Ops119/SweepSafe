@@ -46,3 +46,4 @@ progress{width:100%}
 h1.small{font-size:1.8rem}
 .donate{border-top:4px solid var(--accent2)}.donate input{width:7rem}.btn[aria-disabled="true"]{opacity:.5;pointer-events:none}
 .demo-controls{display:grid;gap:10px;margin:12px 0}@media(min-width:640px){.demo-controls{grid-template-columns:repeat(3,1fr)}}.demo-controls label{display:grid;gap:4px;color:var(--muted);font-size:.9rem}.demo-out{white-space:pre-wrap;word-break:break-word;background:var(--code);border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin:12px 0;font:14px/1.5 ui-monospace,Menlo,Consolas,monospace}.demo{border-top:4px solid var(--accent)}
+.sr-only{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}

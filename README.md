@@ -28,8 +28,8 @@ sweepsafe report 0xYourAddress --chain base -o report.html
 sweepsafe revoke 0xYourAddress --chain base --min-score 50   # prints unsigned transactions
 ```
 
-`revoke` requires `--min-score`, `--token`, `--spender` or `--all`. Exit codes: 0 ok, 1 findings
-or errors, 2 usage error, 130 interrupted.
+`revoke` requires `--min-score`, `--token`, `--spender` or `--all`. Exit codes: 0 success (even when
+approvals are found), 1 error, 2 usage error, 130 interrupted.
 
 ## Solana
 
@@ -76,10 +76,14 @@ CLI uses the standard library (`urllib`, `argparse`, `sqlite3`) plus `pydantic`,
 - ERC-20 and SPL tokens only: no NFT approvals and no Permit2.
 - Solana revoke in the browser relies on the wallet accepting a pre-built transaction and has
   not been tested against a real wallet; the CLI's base64 transaction is the fallback.
-- Robinhood Chain has a single public RPC configured; override with `SWEEPSAFE_RPC_ROBINHOOD`.
+- Robinhood Chain has only two public RPCs configured (every other chain has three); override
+  with `SWEEPSAFE_RPC_ROBINHOOD`. Public endpoints on every chain are rate-limited.
+- The MyCrypto scam-address list URL could not be confirmed; if it is unreachable the scan
+  continues with the other list and shows a warning.
 - Addresses you type are not EIP-55 checksum-validated.
 - Blocklists and verification services are third parties and can be wrong or offline.
-- The Pages demo calls those services from your browser, so it needs them to allow CORS.
+- The web scanner calls RPCs and those services straight from your browser, so it needs them
+  to allow cross-origin requests; the CLI has no such requirement.
 
 ## Support
 

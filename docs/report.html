@@ -16,9 +16,9 @@
 <h1 class="small">Approval scanner</h1>
 <p><span class="mode" id="mode">Read-only until you click Revoke</span></p>
 <form class="scan" id="form" autocomplete="off">
-<label class="hidden" for="chain">Chain</label>
+<label class="sr-only" for="chain">Chain</label>
 <select id="chain"><option value="ethereum">Ethereum</option><option value="base">Base</option><option value="arbitrum">Arbitrum</option><option value="optimism">Optimism</option><option value="polygon">Polygon</option><option value="bnb">BNB Chain</option><option value="avalanche">Avalanche</option><option value="linea">Linea</option><option value="robinhood">Robinhood Chain</option><option value="solana">Solana</option></select>
-<label class="hidden" for="address">Wallet address</label>
+<label class="sr-only" for="address">Wallet address</label>
 <input id="address" placeholder="Wallet address (0x… or Solana)" spellcheck="false" required>
 <button class="primary" id="go" type="submit">Scan</button>
 </form>
@@ -32,7 +32,7 @@
 <p>Free and open source. If it helped, you can chip in with USDC on Solana (1 to 10,000 USDC).</p>
 <div class="row">
 <button type="button" data-preset="5">5</button><button type="button" data-preset="25">25</button><button type="button" data-preset="100">100</button>
-<label class="hidden" for="donate-amount">Amount in USDC</label>
+<label class="sr-only" for="donate-amount">Amount in USDC</label>
 <input id="donate-amount" data-amount inputmode="decimal" value="25" size="8">
 <a class="btn primary" data-pay rel="noopener">Donate USDC</a>
 </div>

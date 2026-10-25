@@ -123,8 +123,17 @@ def test_sourcify_mapping():
     assert SourcifyProvider(down).check(chain, ADDR) is Verification.UNKNOWN
 
 
+def test_sourcify_requires_a_real_match():
+    chain = BASE
+    check = lambda body: SourcifyProvider(MapTransport({"sourcify": body})).check(chain, ADDR)  # noqa: E731
+    assert check({"match": "match"}) is Verification.VERIFIED
+    assert check({"match": None, "creationMatch": None}) is Verification.UNVERIFIED
+    assert check({"unexpected": 1}) is Verification.UNKNOWN  # not evidence of verification
+    assert check([1, 2]) is Verification.UNKNOWN
+
+
 def test_sourcify_url_contains_chain_id_and_lowercase_address():
-    transport = MapTransport({"sourcify": {"x": 1}})
+    transport = MapTransport({"sourcify": {"match": "match"}})
     SourcifyProvider(transport).check(BASE, "0x" + "AB" * 20)
     assert transport.calls == [f"https://sourcify.dev/server/v2/contract/8453/{ADDR}"]
 
