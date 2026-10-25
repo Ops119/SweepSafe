@@ -6,7 +6,7 @@
 
 **Find and revoke risky token approvals. Free. Non-custodial.**
 
-SweepSafe scans an Ethereum, Base or Arbitrum wallet for ERC-20 approvals, scores each one
+SweepSafe scans a wallet on Ethereum, Base, Arbitrum, Optimism, Polygon, BNB Chain, Avalanche or Linea for ERC-20 approvals, scores each one
 for risk, explains it in plain English, and builds the unsigned `approve(spender, 0)`
 transaction that removes it. It uses public RPCs and open scam lists, so it costs nothing to run.
 

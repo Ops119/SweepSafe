@@ -25,7 +25,7 @@ def js_constants() -> dict:
         "const S=require(process.argv[1]);"
         "console.log(JSON.stringify({chains:S.CHAINS,blocklists:S.BLOCKLIST_URLS,topic:S.APPROVAL_TOPIC,"
         "selectors:S.SELECTORS,range:S.RANGE_HINTS,rate:S.RATE_HINTS,revert:S.REVERT_HINTS,"
-        "sourcify:S.SOURCIFY_BASE}))"
+        "sourcify:S.SOURCIFY_BASE,aliases:Object.fromEntries(Object.keys(S.CHAINS).concat(['eth','mainnet','arb','arbitrum-one','op','matic','bsc','bnb-chain','avax']).map(k=>[k,S.getChain(k).name]))}))"
     )
     out = subprocess.run(
         ["node", "-e", script, str(DOCS / "sweepsafe.js")],
@@ -86,3 +86,10 @@ def test_abi_constants_match_and_are_keccak_derived():
     }
     for key, sig in expected.items():
         assert js["selectors"][key] == "0x" + keccak_hex(sig)[:8]
+
+
+def test_aliases_resolve_identically():
+    from sweepsafe.config import get_chain
+
+    for alias, name in js_constants()["aliases"].items():
+        assert get_chain(alias).name == name

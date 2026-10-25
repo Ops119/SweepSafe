@@ -55,13 +55,80 @@ ARBITRUM = Chain(
     reorg_depth=1000,
 )
 
-CHAINS: dict[str, Chain] = {c.name: c for c in (ETHEREUM, BASE, ARBITRUM)}
+OPTIMISM = Chain(
+    name="optimism",
+    chain_id=10,
+    rpcs=(
+        "https://optimism-rpc.publicnode.com",
+        "https://mainnet.optimism.io",
+    ),
+    explorer="https://optimistic.etherscan.io",
+    blockscout="https://optimism.blockscout.com",
+    reorg_depth=256,
+)
+
+POLYGON = Chain(
+    name="polygon",
+    chain_id=137,
+    rpcs=(
+        "https://polygon-bor-rpc.publicnode.com",
+        "https://polygon-rpc.com",
+    ),
+    explorer="https://polygonscan.com",
+    blockscout="https://polygon.blockscout.com",
+    reorg_depth=256,
+)
+
+BNB = Chain(
+    name="bnb",
+    chain_id=56,
+    rpcs=(
+        "https://bsc-rpc.publicnode.com",
+        "https://bsc-dataseed.binance.org",
+    ),
+    explorer="https://bscscan.com",
+    blockscout=None,
+    reorg_depth=64,
+)
+
+AVALANCHE = Chain(
+    name="avalanche",
+    chain_id=43114,
+    rpcs=(
+        "https://avalanche-c-chain-rpc.publicnode.com",
+        "https://api.avax.network/ext/bc/C/rpc",
+    ),
+    explorer="https://snowtrace.io",
+    blockscout=None,
+    reorg_depth=64,
+)
+
+LINEA = Chain(
+    name="linea",
+    chain_id=59144,
+    rpcs=(
+        "https://linea-rpc.publicnode.com",
+        "https://rpc.linea.build",
+    ),
+    explorer="https://lineascan.build",
+    blockscout=None,
+    reorg_depth=256,
+)
+
+CHAINS: dict[str, Chain] = {
+    c.name: c for c in (ETHEREUM, BASE, ARBITRUM, OPTIMISM, POLYGON, BNB, AVALANCHE, LINEA)
+}
 
 _ALIASES = {
     "eth": "ethereum",
     "mainnet": "ethereum",
     "arb": "arbitrum",
     "arbitrum-one": "arbitrum",
+    "op": "optimism",
+    "matic": "polygon",
+    "bsc": "bnb",
+    "bnb-chain": "bnb",
+    "avax": "avalanche",
 }
 
 

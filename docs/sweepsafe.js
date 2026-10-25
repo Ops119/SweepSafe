@@ -70,8 +70,70 @@
       reorgDepth: 1000,
       startBlock: 0,
     },
+    optimism: {
+      name: "optimism",
+      id: 10,
+      rpcs: [
+        "https://optimism-rpc.publicnode.com",
+        "https://mainnet.optimism.io",
+      ],
+      explorer: "https://optimistic.etherscan.io",
+      blockscout: "https://optimism.blockscout.com",
+      reorgDepth: 256,
+      startBlock: 0,
+    },
+    polygon: {
+      name: "polygon",
+      id: 137,
+      rpcs: [
+        "https://polygon-bor-rpc.publicnode.com",
+        "https://polygon-rpc.com",
+      ],
+      explorer: "https://polygonscan.com",
+      blockscout: "https://polygon.blockscout.com",
+      reorgDepth: 256,
+      startBlock: 0,
+    },
+    bnb: {
+      name: "bnb",
+      id: 56,
+      rpcs: [
+        "https://bsc-rpc.publicnode.com",
+        "https://bsc-dataseed.binance.org",
+      ],
+      explorer: "https://bscscan.com",
+      blockscout: null,
+      reorgDepth: 64,
+      startBlock: 0,
+    },
+    avalanche: {
+      name: "avalanche",
+      id: 43114,
+      rpcs: [
+        "https://avalanche-c-chain-rpc.publicnode.com",
+        "https://api.avax.network/ext/bc/C/rpc",
+      ],
+      explorer: "https://snowtrace.io",
+      blockscout: null,
+      reorgDepth: 64,
+      startBlock: 0,
+    },
+    linea: {
+      name: "linea",
+      id: 59144,
+      rpcs: [
+        "https://linea-rpc.publicnode.com",
+        "https://rpc.linea.build",
+      ],
+      explorer: "https://lineascan.build",
+      blockscout: null,
+      reorgDepth: 256,
+      startBlock: 0,
+    },
   };
-  const ALIASES = { eth: "ethereum", mainnet: "ethereum", arb: "arbitrum", "arbitrum-one": "arbitrum" };
+  const ALIASES = {
+    eth: "ethereum", mainnet: "ethereum", arb: "arbitrum", "arbitrum-one": "arbitrum",
+    op: "optimism", matic: "polygon", bsc: "bnb", "bnb-chain": "bnb", avax: "avalanche" };
 
   // Keep these lists identical to src/sweepsafe/chains/rpc.py (checked by the parity tests).
   const RANGE_HINTS = [

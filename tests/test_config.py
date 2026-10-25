@@ -7,8 +7,17 @@ from sweepsafe.config.settings import DEFAULT_BLOCKLIST_URLS, DEFAULT_PAGES_URL
 
 
 def test_default_chains_have_unique_ids_and_https_rpcs():
-    assert set(CHAINS) == {"ethereum", "base", "arbitrum"}
-    assert len({c.chain_id for c in CHAINS.values()}) == 3
+    assert set(CHAINS) == {
+        "ethereum",
+        "base",
+        "arbitrum",
+        "optimism",
+        "polygon",
+        "bnb",
+        "avalanche",
+        "linea",
+    }
+    assert len({c.chain_id for c in CHAINS.values()}) == len(CHAINS) == 8
     assert (CHAINS["base"].chain_id, CHAINS["arbitrum"].chain_id) == (8453, 42161)
     for chain in CHAINS.values():
         assert len(chain.rpcs) >= 2, "need a fallback provider"
@@ -18,7 +27,16 @@ def test_default_chains_have_unique_ids_and_https_rpcs():
 
 @pytest.mark.parametrize(
     ("alias", "name"),
-    [("ETH", "ethereum"), ("mainnet", "ethereum"), (" base ", "base"), ("arb", "arbitrum")],
+    [
+        ("ETH", "ethereum"),
+        ("mainnet", "ethereum"),
+        (" base ", "base"),
+        ("arb", "arbitrum"),
+        ("BSC", "bnb"),
+        ("matic", "polygon"),
+        ("op", "optimism"),
+        ("avax", "avalanche"),
+    ],
 )
 def test_aliases(alias, name):
     assert get_chain(alias).name == name

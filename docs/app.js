@@ -36,7 +36,7 @@
     }
     result.approvals.forEach(function (item) {
       var a = item.approval;
-      var card = el("div", "card");
+      var card = el("div", "card lvl-" + safeLevel(item.risk.level));
       var head = el("div", "row");
       head.appendChild(el("span", "badge " + safeLevel(item.risk.level), item.risk.level.toUpperCase() + " " + item.risk.score));
       head.appendChild(el("strong", null, item.explanation));
