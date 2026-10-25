@@ -58,4 +58,7 @@ jobs:
           node-version: "22"
       - run: npm install --no-save playwright@1.49.1
       - run: npx playwright install --with-deps chromium
-      - run: node tests/ui/smoke.cjs
+      - name: Browser smoke test
+        run: |
+          node tests/ui/smoke.cjs 2>&1 | tee /tmp/smoke.txt
+          test "${PIPESTATUS[0]}" -eq 0 || { echo "::error title=UI smoke failed::$(tr '\n' ' ' < /tmp/smoke.txt | cut -c1-1200)"; exit 1; }
