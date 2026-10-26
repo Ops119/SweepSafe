@@ -44,8 +44,7 @@
     box.textContent = "";
     var all = wallets.list(kind);
     if (!all.length) {
-      box.appendChild(el("p", null, "No " + (kind === "solana" ? "Solana" : "EVM") + " wallet detected. Install a wallet extension and reload, or paste an address to scan without one."));
-      return;
+      box.appendChild(el("p", null, "No " + (kind === "solana" ? "Solana" : "EVM") + " wallet detected. Install one below and reload, or paste an address to scan without one."));
     }
     all.forEach(function (w) {
       var b = el("button", null, null);
@@ -55,6 +54,21 @@
       b.addEventListener("click", function () { chooseWallet(w); });
       box.appendChild(b);
     });
+    var missing = wallets.missing(kind);
+    if (missing.length) {
+      var more = $("wallet-install");
+      more.textContent = "";
+      more.appendChild(el("span", null, "Not installed:"));
+      missing.forEach(function (m) {
+        var a = el("a", "btn", "Get " + m.name);
+        a.href = m.install; // fixed constant from wallets.js, never wallet-supplied
+        a.target = "_blank";
+        a.rel = "noopener noreferrer";
+        more.appendChild(a);
+      });
+    } else {
+      $("wallet-install").textContent = "";
+    }
   }
 
   async function chooseWallet(w) {

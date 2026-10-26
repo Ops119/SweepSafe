@@ -191,3 +191,50 @@ test("a window with no event support or wallets yields empty lists, not errors",
   assert.deepEqual(w.list("evm"), []);
   assert.deepEqual(w.list("solana"), []);
 });
+
+test("MetaMask, Trust Wallet, Phantom and Solflare are recognised however they announce", () => {
+  const win = fakeWindow();
+  evmWallet(win, { uuid: "1", name: "MetaMask", rdns: "io.metamask" }, eip1193([]));
+  evmWallet(win, { uuid: "2", name: "Trust Wallet", rdns: "com.trustwallet.app" }, eip1193([]));
+  evmWallet(win, { uuid: "3", name: "Some Other", rdns: "other.io" }, eip1193([]));
+  const w = W.init(win, S);
+  registerStandard(win, standardWallet("Phantom").wallet);
+  registerStandard(win, standardWallet("Solflare").wallet);
+  assert.deepEqual(w.list("evm").map((x) => x.known), ["metamask", "trust", null]);
+  assert.deepEqual(w.list("solana").map((x) => x.known), ["phantom", "solflare"]);
+  assert.deepEqual(w.missing("evm").map((x) => x.name), ["Phantom"]); // not installed for EVM
+  assert.deepEqual(w.missing("solana"), []);
+});
+
+test("a spoofed name on the wrong kind of wallet does not count as installed", () => {
+  const win = fakeWindow();
+  evmWallet(win, { uuid: "1", name: "Solflare", rdns: "fake.io" }, eip1193([])); // Solflare is Solana-only
+  const w = W.init(win, S);
+  assert.equal(w.list("evm")[0].known, null);
+  assert.ok(w.missing("evm").some((m) => m.key === "metamask"));
+  assert.deepEqual(w.missing("solana").map((m) => m.name), ["Phantom", "Solflare"]);
+});
+
+test("missing wallets come with fixed official install links", () => {
+  const w = W.init(fakeWindow(), S);
+  assert.deepEqual(w.missing("evm").map((m) => m.name), ["MetaMask", "Trust Wallet", "Phantom"]);
+  assert.deepEqual(w.missing("solana").map((m) => m.name), ["Phantom", "Solflare"]);
+  const hosts = new Set(["metamask.io", "trustwallet.com", "phantom.com", "www.solflare.com"]);
+  for (const k of W.KNOWN) {
+    const u = new URL(k.install);
+    assert.equal(u.protocol, "https:");
+    assert.ok(hosts.has(u.hostname), k.install);
+  }
+});
+
+test("Phantom's own EVM provider is found even when it did not announce itself", () => {
+  const phantomEth = { isPhantom: true, request: async () => [] };
+  const win = fakeWindow({ phantom: { ethereum: phantomEth }, ethereum: phantomEth });
+  const list = W.init(win, S).list("evm");
+  assert.deepEqual(list.map((x) => x.name), ["Phantom"]); // same object as window.ethereum: no duplicate
+  assert.equal(list[0].known, "phantom");
+  // A page that merely claims isPhantom without request() is ignored.
+  assert.deepEqual(W.init(fakeWindow({ phantom: { ethereum: { isPhantom: true } } }), S).list("evm"), []);
+  // Something that is not Phantom at window.phantom.ethereum is not labelled Phantom.
+  assert.deepEqual(W.init(fakeWindow({ phantom: { ethereum: { request: async () => [] } } }), S).list("evm"), []);
+});

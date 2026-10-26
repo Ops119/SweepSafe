@@ -46,8 +46,10 @@ stale-approval rule does not apply. A delegated amount of 2^63 or more counts as
 ## Wallets
 
 The web scanner lists every installed wallet and lets you choose: EVM wallets through EIP-6963
-(MetaMask, Rabby, Coinbase Wallet and others), Solana wallets through Wallet Standard (Phantom,
-Solflare, Backpack and others), with a fallback to older injected wallets. Connecting only shares
+(MetaMask, Trust Wallet, Phantom, Rabby, Coinbase Wallet and others), Solana wallets through
+Wallet Standard (Phantom, Solflare, Backpack and others), with a fallback to older injected
+wallets. MetaMask, Trust Wallet, Phantom and Solflare are recognised by name and, if not
+installed, shown with a link to their official download page. Connecting only shares
 your public address. WalletConnect (mobile QR) is not included because it needs a relay service
 and project ID, which does not fit a zero-cost, backend-free tool; use the CLI and sign in any
 wallet instead. Wallet support is tested with simulated wallets only, not real extensions.

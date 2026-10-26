@@ -140,6 +140,10 @@ const srv = http.createServer((q, r) => {
   if (await page2.locator("#wallet-list img[src^='data:image/png']").count() !== 2) throw new Error("wallet icons missing");
   if (await page2.locator("#wallet-list img:not([src^='data:image/png'])").count()) throw new Error("hostile name became an element");
   if (await page2.evaluate(() => window.__pwn2)) throw new Error("hostile wallet name executed");
+  const evmInstall = await page2.locator("#wallet-install a").allInnerTexts();
+  if (evmInstall.join("|") !== "Get MetaMask|Get Trust Wallet|Get Phantom") throw new Error("evm install links " + evmInstall);
+  const hrefs = await page2.locator("#wallet-install a").evaluateAll((as) => as.map((a) => a.href + " " + a.rel));
+  if (!hrefs.every((h) => h.startsWith("https://") && h.includes("noopener noreferrer"))) throw new Error("unsafe install links " + hrefs);
   await page2.locator("#wallet-list button").nth(1).click();
   await until(page2, () => document.getElementById("address").value.length > 0);
   if ((await page2.inputValue("#address")) !== ETH_B) throw new Error("wrong account after picking Beta");
@@ -148,6 +152,7 @@ const srv = http.createServer((q, r) => {
   await page2.click("#connect");
   await page2.waitForSelector("#wallet-list button");
   if ((await page2.locator("#wallet-list button").allInnerTexts()).join() !== "Std Wallet") throw new Error("solana wallet list");
+  if ((await page2.locator("#wallet-install a").allInnerTexts()).join("|") !== "Get Phantom|Get Solflare") throw new Error("solana install links");
   await page2.locator("#wallet-list button").first().click();
   await until(page2, (o) => document.getElementById("address").value === o, SOL_OWNER);
   await page2.close();

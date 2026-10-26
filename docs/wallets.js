@@ -21,6 +21,20 @@
     return typeof icon === "string" && icon.length < 200000 && /^data:image\/(png|jpeg|webp|gif|svg\+xml);base64,[A-Za-z0-9+/=]+$/.test(icon) ? icon : null;
   }
 
+  // Wallets we recognise and can point people to. Install links are fixed constants from each
+  // wallet's own docs, never taken from wallet-supplied metadata.
+  const KNOWN = [
+    { key: "metamask", name: "MetaMask", kinds: ["evm"], rdns: ["io.metamask", "io.metamask.flask"], install: "https://metamask.io/download/" },
+    { key: "trust", name: "Trust Wallet", kinds: ["evm"], rdns: ["com.trustwallet.app"], install: "https://trustwallet.com/download" },
+    { key: "phantom", name: "Phantom", kinds: ["evm", "solana"], rdns: ["app.phantom"], install: "https://phantom.com/" },
+    { key: "solflare", name: "Solflare", kinds: ["solana"], rdns: [], install: "https://www.solflare.com/download/" },
+  ];
+  function matchKnown(entry) {
+    const name = String(entry.name || "").toLowerCase();
+    const rdns = String(entry.rdns || "").toLowerCase();
+    return KNOWN.find((k) => k.kinds.includes(entry.kind) && (k.rdns.includes(rdns) || k.name.toLowerCase() === name)) || null;
+  }
+
   /** @param win window-like object (EventTarget with Event/CustomEvent); @param S the SweepSafe core */
   function init(win, S) {
     const listeners = [];
@@ -33,7 +47,7 @@
       if (!detail || !detail.info || !detail.provider || typeof detail.provider.request !== "function") return;
       const key = String(detail.info.uuid || detail.info.rdns || detail.info.name || "");
       if (!key || evm.has(key)) return;
-      evm.set(key, { id: "evm:" + key, kind: "evm", name: cleanName(detail.info.name, "Wallet"), icon: cleanIcon(detail.info.icon), provider: detail.provider });
+      evm.set(key, { id: "evm:" + key, kind: "evm", name: cleanName(detail.info.name, "Wallet"), icon: cleanIcon(detail.info.icon), rdns: cleanName(detail.info.rdns, ""), provider: detail.provider });
       changed();
     }
     try {
@@ -86,11 +100,18 @@
 
     // ---------------------------------------------------------------- legacy fallbacks
     function legacyEvm() {
+      const seen = Array.from(evm.values()).map((w) => w.provider);
+      const out = [];
+      const phantom = win.phantom && win.phantom.ethereum;
+      if (phantom && typeof phantom.request === "function" && phantom.isPhantom === true && !seen.includes(phantom)) {
+        seen.push(phantom);
+        out.push({ id: "evm:phantom", kind: "evm", name: "Phantom", icon: null, rdns: "", provider: phantom });
+      }
       const eth = win.ethereum;
-      if (!eth || typeof eth.request !== "function") return [];
-      const known = Array.from(evm.values()).map((w) => w.provider);
-      if (known.includes(eth)) return [];
-      return [{ id: "evm:injected", kind: "evm", name: "Browser wallet", icon: null, provider: eth }];
+      if (eth && typeof eth.request === "function" && !seen.includes(eth)) {
+        out.push({ id: "evm:injected", kind: "evm", name: "Browser wallet", icon: null, rdns: "", provider: eth });
+      }
+      return out;
     }
     function legacySolana() {
       const standardNames = Array.from(solana.values()).map((w) => w.name.toLowerCase());
@@ -127,8 +148,14 @@
 
     return {
       list(kind) {
-        if (kind === "solana") return Array.from(solana.values()).concat(legacySolana());
-        return Array.from(evm.values()).concat(legacyEvm());
+        const all = kind === "solana" ? Array.from(solana.values()).concat(legacySolana()) : Array.from(evm.values()).concat(legacyEvm());
+        all.forEach((w) => { const k = matchKnown(w); w.known = k ? k.key : null; });
+        return all;
+      },
+      /** Recognised wallets of this kind that were not detected, with their official install links. */
+      missing(kind) {
+        const found = new Set(this.list(kind).map((w) => w.known).filter(Boolean));
+        return KNOWN.filter((k) => k.kinds.includes(kind) && !found.has(k.key)).map((k) => ({ key: k.key, name: k.name, install: k.install }));
       },
       onChange(fn) { listeners.push(fn); },
       /** EVM: ask the chosen wallet for its account (prompts the user). */
@@ -141,5 +168,5 @@
     };
   }
 
-  return { init, cleanName, cleanIcon };
+  return { init, cleanName, cleanIcon, KNOWN };
 });
