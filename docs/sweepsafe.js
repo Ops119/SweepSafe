@@ -1127,7 +1127,12 @@
     }
     const current = hexToInt(await ethereum.request({ method: "eth_chainId" }));
     if (current !== chain.id) {
-      await ethereum.request({ method: "wallet_switchEthereumChain", params: [{ chainId: "0x" + chain.id.toString(16) }] });
+      try {
+        await ethereum.request({ method: "wallet_switchEthereumChain", params: [{ chainId: "0x" + chain.id.toString(16) }] });
+      } catch (e) {
+        if (e && e.code === 4902) throw new Error(chain.name + " is not added to your wallet yet. Add the network in your wallet, then retry.");
+        throw e;
+      }
       const after = hexToInt(await ethereum.request({ method: "eth_chainId" }));
       if (after !== chain.id) throw new Error("Wallet is not on " + chain.name + ".");
     }

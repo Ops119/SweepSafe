@@ -238,3 +238,29 @@ test("Phantom's own EVM provider is found even when it did not announce itself",
   // Something that is not Phantom at window.phantom.ethereum is not labelled Phantom.
   assert.deepEqual(W.init(fakeWindow({ phantom: { ethereum: { request: async () => [] } } }), S).list("evm"), []);
 });
+
+test("an EVM wallet announcing a different rdns cannot pass as MetaMask by name", () => {
+  const win = fakeWindow();
+  evmWallet(win, { uuid: "1", name: "MetaMask", rdns: "evil.example" }, eip1193([]));
+  const w = W.init(win, S);
+  assert.equal(w.list("evm")[0].known, null);
+  assert.ok(w.missing("evm").some((m) => m.key === "metamask"));
+});
+
+test("sendRevoke explains an un-added network (4902)", async () => {
+  const owner = "0x" + "11".repeat(20);
+  const eth = {
+    request: async ({ method }) => {
+      if (method === "eth_requestAccounts") return [owner];
+      if (method === "eth_chainId") return "0x1";
+      if (method === "wallet_switchEthereumChain") throw Object.assign(new Error("x"), { code: 4902 });
+      throw new Error("unexpected " + method);
+    },
+  };
+  await assert.rejects(
+    S.sendRevoke(eth, S.CHAINS.polygon || Object.values(S.CHAINS).find((c) => c.id !== 1), {
+      owner, token: "0x" + "22".repeat(20), spender: "0x" + "33".repeat(20),
+    }),
+    /not added to your wallet/,
+  );
+});

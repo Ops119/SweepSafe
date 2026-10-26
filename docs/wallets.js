@@ -32,7 +32,10 @@
   function matchKnown(entry) {
     const name = String(entry.name || "").toLowerCase();
     const rdns = String(entry.rdns || "").toLowerCase();
-    return KNOWN.find((k) => k.kinds.includes(entry.kind) && (k.rdns.includes(rdns) || k.name.toLowerCase() === name)) || null;
+    // A wallet that announces an rdns must match it; the display name alone is only trusted
+    // for wallets that announce none (legacy / Wallet Standard), so a lookalike name cannot
+    // masquerade as a known wallet via EIP-6963.
+    return KNOWN.find((k) => k.kinds.includes(entry.kind) && (rdns ? k.rdns.includes(rdns) : k.name.toLowerCase() === name)) || null;
   }
 
   /** @param win window-like object (EventTarget with Event/CustomEvent); @param S the SweepSafe core */
